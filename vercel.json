@@ -1,0 +1,16 @@
+{
+  "buildCommand": "pnpm run vercel-build",
+  "devCommand": "pnpm run dev",
+  "installCommand": "pnpm install",
+  "functions": {
+    "app/api/**": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}
