@@ -1,0 +1,202 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-xl shadow-xl;
+  }
+
+  /* Enhanced poem styling */
+  .poem-container {
+    @apply relative;
+  }
+
+  .poem-line {
+    @apply leading-loose font-serif text-base sm:text-lg;
+    font-variant-ligatures: common-ligatures;
+    text-rendering: optimizeLegibility;
+  }
+
+  .poem-emphasis {
+    @apply text-purple-300 font-medium;
+  }
+
+  /* Smooth text animations */
+  .text-reveal {
+    animation: textReveal 0.6s ease-out forwards;
+  }
+
+  @keyframes textReveal {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Enhanced hero animations */
+  .hero-glow {
+    animation: heroGlow 4s ease-in-out infinite;
+  }
+
+  @keyframes heroGlow {
+    0%,
+    100% {
+      text-shadow: 0 0 20px rgba(147, 51, 234, 0.5);
+    }
+    50% {
+      text-shadow: 0 0 30px rgba(236, 72, 153, 0.8), 0 0 40px rgba(147, 51, 234, 0.3);
+    }
+  }
+
+  /* Floating animation */
+  .float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+
+  /* Pulse animation for interactive elements */
+  .pulse-soft {
+    animation: pulseSoft 3s ease-in-out infinite;
+  }
+
+  @keyframes pulseSoft {
+    0%,
+    100% {
+      opacity: 0.7;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(147, 51, 234, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(147, 51, 234, 0.7);
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Focus styles for accessibility */
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  @apply outline-none ring-2 ring-purple-400/50 ring-offset-2 ring-offset-transparent;
+}
+
+/* Animation for text selection */
+::selection {
+  background: rgba(147, 51, 234, 0.3);
+  color: white;
+}
+
+/* Ensure proper contrast for accessibility */
+.glass-card {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Enhanced typography for poems */
+.font-serif {
+  font-family: "Georgia", "Times New Roman", serif;
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .text-reveal,
+  .hero-glow,
+  .float,
+  .pulse-soft {
+    animation: none;
+  }
+
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .glass-card {
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+  }
+
+  .text-gray-100 {
+    color: white;
+  }
+
+  .text-gray-400 {
+    color: #d1d5db;
+  }
+}
+
+/* Performance optimizations */
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+/* Enhanced loading animations */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background-size: 200px 100%;
+  animation: shimmer 2s infinite;
+}
