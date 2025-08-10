@@ -20,8 +20,25 @@ export class OCRService {
     'gemini'
   ] as const
 
-  private static readonly OCR_SPACE_API_KEY = 'helloworld' // Free tier key
   private static readonly RATE_LIMITS = new Map<string, { count: number; resetTime: number }>()
+
+  private static async getOCRSpaceApiKey(): Promise<string | null> {
+    if (process.env.OCR_SPACE_API_KEY && process.env.OCR_SPACE_API_KEY.length > 5) {
+      return process.env.OCR_SPACE_API_KEY
+    }
+    try {
+      const { DatabaseService } = await import('./database-service')
+      const settings = await DatabaseService.getSettings()
+      const key = settings?.ocrSpaceApiKey || settings?.openaiApiKey // historical misplacement
+      return key && key.length > 5 ? key : null
+    } catch {
+      return null
+    }
+  }
+
+  private static getOCRSpaceEndpoint(): string {
+    return process.env.OCR_SPACE_ENDPOINT || 'https://api.ocr.space/parse/image'
+  }
 
   /**
    * Extract text from image using multiple OCR providers with fallbacks
@@ -91,31 +108,33 @@ export class OCRService {
     }
 
     const base64Image = imageBuffer.toString('base64')
-    
-    const requestBody = {
-      apikey: this.OCR_SPACE_API_KEY,
-      base64Image: `data:${mimeType};base64,${base64Image}`,
-      language: 'eng',
-      isOverlayRequired: false,
-      detectOrientation: true,
-      scale: true,
-      OCREngine: 2,
-      isTable: false,
-      filetype: mimeType.split('/')[1]?.toUpperCase() || 'AUTO'
+
+    const apiKey = await this.getOCRSpaceApiKey()
+    if (!apiKey) {
+      throw new Error('OCR.space API key not configured')
     }
 
+    const form = new URLSearchParams()
+    form.set('apikey', apiKey)
+    form.set('base64Image', `data:${mimeType};base64,${base64Image}`)
+    form.set('language', 'eng')
+    form.set('isOverlayRequired', 'false')
+    form.set('detectOrientation', 'true')
+    form.set('scale', 'true')
+    form.set('OCREngine', '2')
+    form.set('isTable', 'false')
+    form.set('filetype', mimeType.split('/')[1]?.toUpperCase() || 'AUTO')
+
     const response = await Promise.race([
-      fetch('https://api.ocr.space/parse/image', {
+      fetch(this.getOCRSpaceEndpoint(), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
           'User-Agent': 'Literary-Showcase/1.0'
         },
-        body: JSON.stringify(requestBody)
+        body: form.toString()
       }),
-      new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('OCR.space request timeout')), 30000)
-      )
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('OCR.space request timeout')), 30000))
     ])
 
     if (!response.ok) {
@@ -322,13 +341,11 @@ Extract the text now:`
     
     if (now < userRequest.resetTime) {
       // Different limits per provider
-      const limits = {
-        'ocr-space': 50, // Per hour
-        'free-ocr-ai': 20, // Per hour  
-        'gemini': 10 // Per hour
+      const limits: Record<string, number> = {
+        'ocr-space': 50,
+        'gemini': 10,
       }
-      
-      return userRequest.count >= (limits[provider as keyof typeof limits] || 10)
+      return userRequest.count >= (limits[provider] || 10)
     }
     
     return false
@@ -360,24 +377,13 @@ Extract the text now:`
   static async getProvidersStatus(): Promise<Array<{provider: string, available: boolean, error?: string}>> {
     const status = []
     
-    // Check OCR.space
-    try {
-      const response = await fetch('https://api.ocr.space/parse/image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apikey: 'test' })
-      })
-      status.push({ 
-        provider: 'ocr-space', 
-        available: response.status !== 500 
-      })
-    } catch (error) {
-      status.push({ 
-        provider: 'ocr-space', 
-        available: false, 
-        error: 'Network error' 
-      })
-    }
+    // Check OCR.space (available if API key exists)
+    const ocrSpaceKey = await this.getOCRSpaceApiKey()
+    status.push({
+      provider: 'ocr-space',
+      available: !!ocrSpaceKey,
+      error: ocrSpaceKey ? undefined : 'API key not configured'
+    })
 
     // Check Gemini
     const geminiApiKey = process.env.GEMINI_API_KEY

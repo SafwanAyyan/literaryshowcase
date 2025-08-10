@@ -18,6 +18,10 @@ NEXTAUTH_SECRET="please-set-a-strong-secret"
 OPENAI_API_KEY=""
 GEMINI_API_KEY=""
 DEEPSEEK_API_KEY=""
+
+# OCR.space
+OCR_SPACE_API_KEY=""
+OCR_SPACE_ENDPOINT="https://api.ocr.space/parse/image"
 ```
 
 ## Install & Dev

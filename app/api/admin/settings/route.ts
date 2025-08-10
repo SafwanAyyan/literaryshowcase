@@ -51,6 +51,8 @@ export async function GET(request: NextRequest) {
       ocrLogRequests: 'true',
       ocrSecureMode: 'true',
       ocrSpaceEnabled: 'true',
+      ocrSpaceApiKey: process.env.OCR_SPACE_API_KEY || '',
+      ocrSpaceEndpoint: process.env.OCR_SPACE_ENDPOINT || 'https://api.ocr.space/parse/image',
       geminiOcrEnabled: 'true',
       freeOcrAiEnabled: 'false'
     }
