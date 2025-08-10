@@ -1,30 +1,57 @@
-# Modern Next.js Showcase
+# Literary Showcase
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+Production-ready Next.js (App Router) with Prisma (SQLite) and Vercel deployment.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/safwanayyan02-1845s-projects/v0-modern-next-js-showcase)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/Vb8ynooDite)
+## Requirements
+- Node 18.x LTS
+- npm 10+
 
-## Overview
+## Environment
+Create `.env` in the project root:
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+```
+DATABASE_URL="file:./prisma/dev.db"
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="please-set-a-strong-secret"
 
-## Deployment
+# Optional AI providers
+OPENAI_API_KEY=""
+GEMINI_API_KEY=""
+```
 
-Your project is live at:
+## Install & Dev
+```
+npm ci
+npm run dev
+```
 
-**[https://vercel.com/safwanayyan02-1845s-projects/v0-modern-next-js-showcase](https://vercel.com/safwanayyan02-1845s-projects/v0-modern-next-js-showcase)**
+## Database
+```
+npx prisma generate
+npx prisma migrate dev --name init
+```
 
-## Build your app
+Prisma Studio (optional):
+```
+npm run db:studio
+```
 
-Continue building your app on:
+## Build
+```
+npm run build
+```
 
-**[https://v0.dev/chat/projects/Vb8ynooDite](https://v0.dev/chat/projects/Vb8ynooDite)**
+## Deploy to Vercel
+1. Push to GitHub and import the repo in Vercel.
+2. Project Settings → Environment Variables:
+   - `DATABASE_URL = file:./prisma/dev.db`
+   - `NEXTAUTH_SECRET = <your-strong-secret>`
+   - `NEXTAUTH_URL = https://<your-vercel-domain>`
+   - Optional: `OPENAI_API_KEY`, `GEMINI_API_KEY`
+3. Build uses `npm run vercel-build` (runs `prisma generate`, `prisma db push`, `next build`).
 
-## How It Works
+## Metrics
+Middleware samples pageviews (hourly) and visits (daily) with cookies. Admin dashboard charts daily and weekly series.
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+## Assets
+Large assets live in `public/assets/...`.
