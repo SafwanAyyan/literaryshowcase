@@ -19,9 +19,23 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const user = await prisma.user.findUnique({
+        let user = await prisma.user.findUnique({
           where: { email: credentials.email }
         })
+
+        // Bootstrap admin on first login attempt if env vars are set and user doesn't exist
+        if (!user && process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+          const matchesAdminEnv = (
+            credentials.email === process.env.ADMIN_EMAIL &&
+            credentials.password === process.env.ADMIN_PASSWORD
+          )
+          if (matchesAdminEnv) {
+            const hashed = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10)
+            user = await prisma.user.create({
+              data: { email: process.env.ADMIN_EMAIL, password: hashed, role: 'admin', name: 'Admin' }
+            })
+          }
+        }
 
         if (!user || !user.password) {
           return null
