@@ -28,6 +28,7 @@
     "@radix-ui/react-slot": "latest",
     "@radix-ui/react-toast": "latest",
     "@types/bcryptjs": "^2.4.6",
+    "@vercel/speed-insights": "^1.2.0",
     "autoprefixer": "^10.4.20",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",

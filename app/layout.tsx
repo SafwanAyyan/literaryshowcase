@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { NextAuthProvider } from '@/components/providers/session-provider'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import { RouteProgress } from '@/components/route-progress'
 import './globals.css'
 
@@ -32,6 +33,7 @@ html {
         <NextAuthProvider>
           <RouteProgress />
           {children}
+          <SpeedInsights />
         </NextAuthProvider>
       </body>
     </html>
