@@ -3,8 +3,7 @@
   "devCommand": "npm run dev",
   "installCommand": "npm ci",
   "functions": {
-    "app/api/**": {
-      "maxDuration": 30
-    }
+    "app/api/**": { "maxDuration": 30 },
+    "app/authors/**": { "maxDuration": 60, "memory": 1024 }
   }
 }

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 import fs from 'fs'
 import path from 'path'
 
@@ -34,7 +36,7 @@ export async function GET(request: NextRequest) {
     })
   }
   const file = fs.createReadStream(videoPath)
-  return new NextResponse(file as any, { status: 200, headers: { 'Content-Type': 'video/mp4', 'Content-Length': size.toString() } })
+  return new NextResponse(file as any, { status: 200, headers: { 'Content-Type': 'video/mp4', 'Content-Length': size.toString(), 'Cache-Control': 'public, max-age=0, s-maxage=0' } })
 }
 
 

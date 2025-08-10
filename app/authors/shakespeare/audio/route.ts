@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 import fs from 'fs'
 import path from 'path'
 
@@ -13,7 +15,8 @@ export async function GET() {
     headers: {
       'Content-Type': 'audio/mp4',
       'Content-Length': stat.size.toString(),
-      'Cache-Control': 'public, max-age=3600',
+      // Prevent ISR fallback from capturing huge payloads
+      'Cache-Control': 'public, max-age=0, s-maxage=0',
       'Accept-Ranges': 'bytes'
     }
   })
