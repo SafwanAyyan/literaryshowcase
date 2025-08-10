@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic'
 import { DatabaseService } from '@/lib/database-service'
 
 // GET /api/content/public - Get all published content (no auth required)
