@@ -1,9 +1,5 @@
 {
   "buildCommand": "npm run vercel-build",
   "devCommand": "npm run dev",
-  "installCommand": "npm ci",
-  "functions": {
-    "app/api/**": { "maxDuration": 30, "runtime": "nodejs18.x" },
-    "app/authors/**": { "maxDuration": 60, "memory": 1024, "runtime": "nodejs18.x" }
-  }
+  "installCommand": "npm ci"
 }
