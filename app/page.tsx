@@ -21,11 +21,19 @@ export default function Home() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
-  const [isLoading, setIsLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [listLoading, setListLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [orderBy, setOrderBy] = useState<OrderByOption>("newest")
   const [author, setAuthor] = useState("")
   const [randomizing, setRandomizing] = useState(false)
+
+  // Debounce search to avoid flicker and repeated requests on each keystroke
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300)
+    return () => clearTimeout(t)
+  }, [searchTerm])
 
   // Load content from database API with filters/sort
   const loadContent = useCallback(async () => {
@@ -33,7 +41,7 @@ export default function Home() {
       const params = new URLSearchParams()
       if (selectedCategory !== 'all') params.set('category', selectedCategory)
       if (author) params.set('author', author)
-      if (searchTerm) params.set('q', searchTerm)
+      if (debouncedSearch) params.set('q', debouncedSearch)
       if (orderBy) params.set('orderBy', orderBy)
       params.set('page', String(page))
       params.set('limit', '30')
@@ -50,9 +58,10 @@ export default function Home() {
     } catch (error) {
       console.error('Error loading content:', error)
     } finally {
-      setIsLoading(false)
+      setInitialLoading(false)
+      setListLoading(false)
     }
-  }, [selectedCategory, author, searchTerm, orderBy, page])
+  }, [selectedCategory, author, debouncedSearch, orderBy, page])
 
   // Initial load
   useEffect(() => {
@@ -63,19 +72,22 @@ export default function Home() {
   useEffect(() => {
     const cleanup = ContentRefresh.listenForChanges(() => {
       console.log('Content updated, refreshing...')
+      setListLoading(true)
       loadContent()
     })
     
     return cleanup
   }, [loadContent])
 
-  // Reload when filters/sort/page change
+  // Reload when filters/sort/page change (debounced for search)
   useEffect(() => {
-    setIsLoading(true)
-    loadContent()
-  }, [selectedCategory, author, searchTerm, orderBy, page, loadContent])
+    if (!initialLoading) {
+      setListLoading(true)
+      loadContent()
+    }
+  }, [selectedCategory, author, debouncedSearch, orderBy, page, loadContent, initialLoading])
 
-  if (isLoading) {
+  if (initialLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <motion.div
