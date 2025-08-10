@@ -7,10 +7,10 @@ Production-ready Next.js (App Router) with Prisma (SQLite) and Vercel deployment
 - npm 10+
 
 ## Environment
-Create `.env` in the project root:
+Create `.env` in the project root (PostgreSQL for production on Vercel is recommended):
 
 ```
-DATABASE_URL="file:./prisma/dev.db"
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DB?sslmode=require"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="please-set-a-strong-secret"
 
@@ -28,7 +28,7 @@ npm run dev
 ## Database
 ```
 npx prisma generate
-npx prisma migrate dev --name init
+npx prisma db push
 ```
 
 Prisma Studio (optional):
@@ -44,7 +44,7 @@ npm run build
 ## Deploy to Vercel
 1. Push to GitHub and import the repo in Vercel.
 2. Project Settings → Environment Variables:
-   - `DATABASE_URL = file:./prisma/dev.db`
+   - `DATABASE_URL = <your Postgres connection string>`
    - `NEXTAUTH_SECRET = <your-strong-secret>`
    - `NEXTAUTH_URL = https://<your-vercel-domain>`
    - Optional: `OPENAI_API_KEY`, `GEMINI_API_KEY`
