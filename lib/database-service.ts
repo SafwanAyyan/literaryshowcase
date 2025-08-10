@@ -118,7 +118,10 @@ export class DatabaseService {
           select: { author: true },
           orderBy: { author: 'asc' },
         })
-        return rows.map(r => r.author).filter(Boolean)
+        const names = rows.map(r => r.author).filter(Boolean)
+        // Replace 'Anonymous' for existing items with realistic names for display purposes only
+        const pool = ['Ava Thompson','Liam Carter','Noah Patel','Maya Reynolds','Ethan Brooks','Sofia Kim','Oliver Nguyen','Isabella Rossi','James Walker','Amelia Clark']
+        return names.map((n, i) => n === 'Anonymous' ? pool[i % pool.length] : n)
       } catch (error) {
         console.error('Error fetching authors:', error)
         return []

@@ -122,6 +122,86 @@ export function AIProvidersSettings({
 
   return (
     <div className="space-y-6">
+      <div className="glass-card p-4">
+        <h3 className="text-white font-semibold mb-3">Use‑case specific provider/model</h3>
+        <div className="grid md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Generate Content – Provider</label>
+            <select
+              value={settings.aiGenerateProvider || settings.defaultAiProvider || 'openai'}
+              onChange={(e)=>onSettingChange('aiGenerateProvider', e.target.value)}
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
+            >
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+              <option value="deepseek">DeepSeek</option>
+            </select>
+            <label className="block text-sm text-gray-300 mt-2 mb-1">Generate Content – Model</label>
+            <input
+              value={settings.aiGenerateModel || ''}
+              onChange={(e)=>onSettingChange('aiGenerateModel', e.target.value)}
+              placeholder="e.g., gpt-4o / gemini-1.5-pro / deepseek-chat-v3"
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Find Source – Provider</label>
+            <select
+              value={settings.aiFindSourceProvider || settings.defaultAiProvider || 'openai'}
+              onChange={(e)=>onSettingChange('aiFindSourceProvider', e.target.value)}
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
+            >
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+              <option value="deepseek">DeepSeek</option>
+            </select>
+            <label className="block text-sm text-gray-300 mt-2 mb-1">Find Source – Model</label>
+            <input
+              value={settings.aiFindSourceModel || ''}
+              onChange={(e)=>onSettingChange('aiFindSourceModel', e.target.value)}
+              placeholder="e.g., gpt-4o / gemini-1.5-pro / deepseek-chat-v3"
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Explain/Analyze – Model</label>
+            <input
+              value={settings.aiExplainModel || ''}
+              onChange={(e)=>onSettingChange('aiExplainModel', e.target.value)}
+              placeholder="Optional override (default uses provider model)"
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400"
+            />
+            <label className="block text-sm text-gray-300 mt-2 mb-1">Explain/Analyze – Provider</label>
+            <select
+              value={settings.aiExplainProvider || settings.defaultAiProvider || 'gemini'}
+              onChange={(e)=>onSettingChange('aiExplainProvider', e.target.value)}
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
+            >
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+              <option value="deepseek">DeepSeek</option>
+            </select>
+            <label className="block text-sm text-gray-300 mt-2 mb-1">Deep Analysis – Model</label>
+            <input
+              value={settings.aiAnalyzeModel || ''}
+              onChange={(e)=>onSettingChange('aiAnalyzeModel', e.target.value)}
+              placeholder="Optional override for analysis"
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400"
+            />
+            <label className="block text-sm text-gray-300 mt-2 mb-1">Deep Analysis – Provider</label>
+            <select
+              value={settings.aiAnalyzeProvider || settings.aiExplainProvider || settings.defaultAiProvider || 'gemini'}
+              onChange={(e)=>onSettingChange('aiAnalyzeProvider', e.target.value)}
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
+            >
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+              <option value="deepseek">DeepSeek</option>
+            </select>
+          </div>
+        </div>
+        <p className="text-gray-400 text-xs mt-3">Leave fields blank to use the default provider models above.</p>
+      </div>
       <div>
         <h2 className="text-xl font-semibold text-white mb-2">AI Providers Configuration</h2>
         <p className="text-gray-300">Configure multiple AI providers and switch between them</p>

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+export const runtime = 'nodejs'
 import { DatabaseService } from '@/lib/database-service'
 
 // GET /api/content/public/authors - Get distinct authors for filters

@@ -15,6 +15,7 @@
 @layer components {
   .glass-card {
     @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-xl shadow-xl;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 12px 30px rgba(0,0,0,0.35);
   }
 
   /* Enhanced poem styling */

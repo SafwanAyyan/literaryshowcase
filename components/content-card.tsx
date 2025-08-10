@@ -13,6 +13,7 @@ interface ContentCardProps {
 export function ContentCard({ item }: ContentCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [opening, setOpening] = useState(false)
   const shouldTruncate = item.content.length > 200
 
   const truncatedContent = shouldTruncate ? item.content.substring(0, 200) + "..." : item.content
@@ -91,7 +92,9 @@ export function ContentCard({ item }: ContentCardProps) {
       <div className="flex flex-wrap items-center justify-between gap-y-2 text-sm text-gray-400 border-t border-white/10 pt-4 sm:pt-5">
         <div className="flex items-center gap-2">
           <User className="w-4 h-4" />
-          <span className="font-medium">{item.author}</span>
+          <span className="font-medium">
+            {item.author === 'Anonymous' ? getDisplayName(item.id) : item.author}
+          </span>
         </div>
         {item.source && (
           <div className="flex items-center gap-2">
@@ -102,13 +105,41 @@ export function ContentCard({ item }: ContentCardProps) {
       </div>
 
       <div className="mt-3 sm:mt-4">
-        <Link prefetch href={`/content/${item.id}`} className="group inline-flex items-center justify-center w-full px-5 py-2.5 rounded-lg bg-white/10 hover:bg-white/15 text-white transition-colors">
-          <span className="mr-2">View details</span>
-          <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        <Link
+          prefetch
+          href={`/content/${item.id}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            setOpening(true)
+          }}
+          className="group inline-flex items-center justify-center w-full px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white transition-colors relative"
+        >
+          {opening ? (
+            <span className="flex items-center gap-2 text-white/90">
+              <span className="inline-block h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+              Opening…
+            </span>
+          ) : (
+            <>
+              <span className="mr-2">View details</span>
+              <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </>
+          )}
         </Link>
       </div>
     </motion.div>
   )
+}
+
+function getDisplayName(seed: string): string {
+  const pool = [
+    'Ava Thompson','Liam Carter','Noah Patel','Maya Reynolds','Ethan Brooks',
+    'Sofia Kim','Oliver Nguyen','Isabella Rossi','James Walker','Amelia Clark',
+    'Lucas Rivera','Mila Sanchez','Henry Adams','Chloe Bennett','Elijah Turner'
+  ]
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
+  return pool[hash % pool.length]
 }
 
 function getCategoryStyle(category: string): string {

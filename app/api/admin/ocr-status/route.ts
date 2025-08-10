@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { OCRService } from '@/lib/ocr-service'
@@ -17,10 +18,10 @@ export async function GET(request: NextRequest) {
     // Get OCR provider status with enhanced error handling
     try {
       const providers = await OCRService.getProvidersStatus()
-      
+      const filtered = providers.filter(p => p.provider !== 'free-ocr-ai')
       return NextResponse.json({
         success: true,
-        providers: providers.map(p => ({
+        providers: filtered.map(p => ({
           provider: p.provider,
           available: p.available,
           error: p.error || null,
@@ -35,8 +36,7 @@ export async function GET(request: NextRequest) {
         success: true,
         providers: [
           { provider: 'ocr-space', available: false, error: 'Service check failed', description: 'OCR.space API' },
-          { provider: 'gemini', available: false, error: 'Service check failed', description: 'Google Gemini Vision' },
-          { provider: 'free-ocr-ai', available: false, error: 'Service check failed', description: 'FreeOCR.AI' }
+          { provider: 'gemini', available: false, error: 'Service check failed', description: 'Google Gemini Vision' }
         ]
       })
     }
@@ -52,8 +52,7 @@ export async function GET(request: NextRequest) {
 function getProviderDescription(provider: string): string {
   const descriptions: Record<string, string> = {
     'ocr-space': 'Free tier with 25,000 requests/month. Reliable and fast.',
-    'gemini': 'Google Gemini Vision API. Excellent for complex layouts.',
-    'free-ocr-ai': 'Latest VLM technology. Best format preservation.',
+    'gemini': 'Google Gemini Vision API. Excellent for complex layouts.'
   }
   return descriptions[provider] || 'OCR provider'
 }

@@ -220,23 +220,7 @@ export function DataManager() {
         </div>
       </div>
 
-      {/* Reset Section */}
-      <div className="glass-card p-6 border-red-500/20">
-        <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-          <AlertTriangle className="w-5 h-5 text-red-400" />
-          <span>Danger Zone</span>
-        </h3>
-        <p className="text-gray-300 mb-4">
-          Reset all data to the original default content. This action cannot be undone.
-        </p>
-        <button
-          onClick={handleReset}
-          className="flex items-center space-x-2 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-6 py-3 rounded-lg transition-all duration-300"
-        >
-          <RefreshCw className="w-5 h-5" />
-          <span>Reset to Default</span>
-        </button>
-      </div>
+      {/* Reset Section (removed for safety) */}
     </div>
   )
 }

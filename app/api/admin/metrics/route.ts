@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
@@ -19,20 +20,10 @@ export async function GET(request: NextRequest) {
     const since = new Date()
     since.setDate(since.getDate() - days)
 
-    let metrics: { date: string; visits: number; pageviews: number }[] = []
-    const client: any = prisma as any
-    if (client.dailyMetric?.findMany) {
-      metrics = await client.dailyMetric.findMany({
-        orderBy: { date: 'asc' },
-        where: { createdAt: { gte: since } },
-      })
-    } else {
-      // Fallback raw query if Prisma model isn't available yet (fresh dev env)
-      metrics = await prisma.$queryRawUnsafe(
-        `SELECT date, visits, pageviews FROM "DailyMetric" WHERE datetime(createdAt) >= datetime(?) ORDER BY date ASC`,
-        since.toISOString()
-      ) as any
-    }
+    const metrics = await prisma.dailyMetric.findMany({
+      orderBy: { date: 'asc' },
+      where: { createdAt: { gte: since } },
+    })
 
     // Normalize to a complete series
     const series: { date: string; visits: number; pageviews: number }[] = []

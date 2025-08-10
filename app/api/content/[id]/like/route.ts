@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const runtime = 'nodejs'
 import { prisma } from '@/lib/prisma'
 import { shouldToggleLike } from '@/lib/engagement'
 

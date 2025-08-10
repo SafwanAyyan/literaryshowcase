@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { BookOpen, Send } from "lucide-react"
+import { BookOpen, Send, Shuffle } from "lucide-react"
 import Link from "next/link"
 // import { literaryData } from "@/lib/data" // Now using database instead
 // import { CategoryFilter } from "@/components/category-filter"
@@ -25,6 +25,7 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState("")
   const [orderBy, setOrderBy] = useState<OrderByOption>("newest")
   const [author, setAuthor] = useState("")
+  const [randomizing, setRandomizing] = useState(false)
 
   // Load content from database API with filters/sort
   const loadContent = useCallback(async () => {
@@ -111,8 +112,8 @@ export default function Home() {
             <div className="glass-card p-6 md:p-8 border border-white/10">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-semibold text-white">Explore Guides</h2>
-                  <p className="text-gray-300 mt-1">Learn through interactive lessons: Shakespeare, Dostoevsky and more.</p>
+                  <h2 className="text-2xl font-semibold text-white">Explore Guides ✨</h2>
+                  <p className="text-gray-300 mt-1">Dive into authors, devices, and short lessons — Shakespeare, Dostoevsky and more.</p>
                 </div>
                 <Link href="/guides" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white transition-colors">
                   <BookOpen className="w-4 h-4" />
@@ -121,12 +122,12 @@ export default function Home() {
               </div>
               <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Link href="/authors/shakespeare" className="rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-colors">
-                  <div className="text-white font-medium">William Shakespeare</div>
-                  <div className="text-gray-300 text-sm">Overview • Hamlet devices • scenes • audio • video</div>
+                  <div className="text-white font-medium">William Shakespeare 📝</div>
+                  <div className="text-gray-300 text-sm">Orientation • Hamlet devices • scenes • audio • recap</div>
                 </Link>
                 <Link href="/authors/dostoevsky" className="rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-colors">
-                  <div className="text-white font-medium">Fyodor Dostoevsky</div>
-                  <div className="text-gray-300 text-sm">Overview • Crime & Punishment — summary • themes • video</div>
+                  <div className="text-white font-medium">Fyodor Dostoevsky 📚</div>
+                  <div className="text-gray-300 text-sm">Overview • Crime & Punishment — summary • themes • recap video</div>
                 </Link>
               </div>
             </div>
@@ -141,7 +142,7 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.5 }}
             className="max-w-4xl mx-auto text-center"
           >
-            <div className="glass-card p-8 border border-purple-500/20">
+             <div className="glass-card p-8 border border-purple-500/20 rounded-2xl">
               <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
                 Share Your Literary Voice
               </h2>
@@ -150,7 +151,7 @@ export default function Home() {
               </p>
               <Link
                 href="/submit"
-                className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-8 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-purple-500/25"
+                className="inline-flex items-center space-x-2 bg-gradient-to-r from-[#1e1e1f] to-[#2a0a37] text-white font-semibold py-3 px-8 rounded-xl hover:from-[#252526] hover:to-[#3a0f4d] transition-all duration-300 transform hover:scale-105 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_12px_30px_rgba(0,0,0,0.35)]"
               >
                 <Send className="w-5 h-5" />
                 <span>Submit Your Content</span>
@@ -212,23 +213,33 @@ export default function Home() {
               </motion.div>
             )}
 
-            {/* Pagination */}
+            {/* Pagination + Randomize */}
             {items.length > 0 && pages > 1 && (
               <div className="flex items-center justify-center gap-4 mt-10">
                 <button
-                  className="px-4 py-2 rounded-lg glass-card disabled:opacity-50"
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                >
-                  Previous
-                </button>
-                <span className="text-gray-300 text-sm">Page {page} of {pages}</span>
-                <button
-                  className="px-4 py-2 rounded-lg glass-card disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#1e1e1f] to-[#2a0a37] text-white hover:from-[#252526] hover:to-[#3a0f4d] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_20px_rgba(0,0,0,0.35)] disabled:opacity-60"
                   onClick={() => setPage(p => Math.min(pages, p + 1))}
                   disabled={page >= pages}
                 >
-                  Next
+                  More Content
+                </button>
+                <span className="text-gray-300 text-sm">Page {page} of {pages}</span>
+                <button
+                  className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white inline-flex items-center gap-2"
+                  onClick={async () => {
+                    try {
+                      setRandomizing(true)
+                      const res = await fetch('/api/content/public/random', { cache: 'no-store' })
+                      const data = await res.json()
+                      if (data.success && data.item?.id) {
+                        window.location.href = `/content/${data.item.id}`
+                      }
+                    } finally {
+                      setRandomizing(false)
+                    }
+                  }}
+                >
+                  <Shuffle className="w-4 h-4" /> {randomizing ? 'Finding…' : 'Randomize'}
                 </button>
               </div>
             )}
@@ -252,10 +263,10 @@ export default function Home() {
           }}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
-          className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 rounded-full shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 relative overflow-hidden"
+          className="bg-gradient-to-r from-[#1e1e1f] to-[#2a0a37] text-white p-4 rounded-2xl shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 relative overflow-hidden"
         >
           {/* Background animation */}
-          <div className="absolute inset-0 bg-gradient-to-r from-pink-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#2a0a37] to-[#1e1e1f] opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
           
           {/* Icon */}
           <div className="relative z-10 flex items-center justify-center">

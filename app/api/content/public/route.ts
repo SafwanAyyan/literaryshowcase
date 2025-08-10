@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 import { DatabaseService } from '@/lib/database-service'
+import type { NextRequest } from 'next/server'
 
 // GET /api/content/public - Get all published content (no auth required)
 export async function GET(request: NextRequest) {

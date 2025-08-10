@@ -66,10 +66,10 @@ export function ContentDetailClient({ id, content, author, category, source, typ
         <button
           onClick={toggleLike}
           disabled={busy}
-          className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border transition-all duration-200 shadow-md hover:shadow-purple-500/20 ${
+          className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-full border transition-all duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_20px_rgba(0,0,0,0.35)] ${
             liked
-              ? 'bg-gradient-to-r from-pink-600 to-rose-600 text-white border-transparent'
-              : 'glass-card text-white/90 border-white/15 hover:border-white/30 hover:bg-white/10'
+              ? 'bg-gradient-to-r from-[#2a0a37] to-[#1e1e1f] text-white border-transparent'
+              : 'bg-white/10 text-white/90 border-white/15 hover:bg-white/15'
           } disabled:opacity-60`}
         >
           <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} /> {liked ? 'Liked' : 'Like'}
@@ -84,12 +84,12 @@ export function ContentDetailClient({ id, content, author, category, source, typ
             <textarea
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              className="w-full min-h-28 bg-white/5 border border-white/10 rounded-lg text-white p-3 focus:outline-none focus:ring-2 focus:ring-purple-400/50"
+              className="w-full min-h-28 bg-white/5 border border-white/10 rounded-xl text-white p-3 focus:outline-none focus:ring-2 focus:ring-purple-400/50"
             />
             <button
               onClick={ask}
               disabled={loading}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white disabled:opacity-60 shadow-md hover:shadow-purple-500/20"
+              className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-[#1e1e1f] to-[#2a0a37] hover:from-[#252526] hover:to-[#3a0f4d] text-white disabled:opacity-60 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_20px_rgba(0,0,0,0.35)]"
             >
               {loading ? 'Thinking…' : 'Ask'}
             </button>
@@ -99,7 +99,7 @@ export function ContentDetailClient({ id, content, author, category, source, typ
               </div>
             )}
           </div>
-          <div className="mt-6">
+          <div className="mt-6 text-center">
             <button
               onClick={async () => {
                 setAnalyzing(true)
@@ -116,9 +116,9 @@ export function ContentDetailClient({ id, content, author, category, source, typ
                 }
               }}
               disabled={analyzing}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white disabled:opacity-60 shadow-md hover:shadow-purple-500/20"
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-2xl bg-gradient-to-r from-[#1e1e1f] to-[#2a0a37] hover:from-[#252526] hover:to-[#3a0f4d] text-white disabled:opacity-60 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_20px_rgba(0,0,0,0.35)]"
             >
-              {analyzing ? 'Analyzing…' : 'Deep literary analysis (Gemini 2.5 Pro)'}
+              {analyzing ? 'Analyzing…' : 'Deep literary analysis'}
             </button>
             {analysis && (
               <div className="mt-4 grid gap-4 md:grid-cols-2">

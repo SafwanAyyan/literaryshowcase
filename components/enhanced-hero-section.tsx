@@ -2,7 +2,7 @@
 
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { useState, useEffect } from "react"
-import { BookOpen, Feather, Heart, Quote, Sparkles, ChevronDown } from "lucide-react"
+import { BookOpen, Feather, Heart, Quote, Sparkles, ChevronDown, Library } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 const floatingQuotes = [
@@ -153,11 +153,11 @@ export function EnhancedHeroSection() {
         ))}
       </div>
 
-      {/* Floating Quote */}
+      {/* Floating Quote - left aligned, larger, italic, premium font */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="absolute top-20 left-1/2 transform -translate-x-1/2 pointer-events-none"
+        className="absolute top-24 left-6 sm:left-10 pointer-events-none"
       >
         <AnimatePresence mode="wait">
           <motion.div
@@ -166,9 +166,19 @@ export function EnhancedHeroSection() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.8 }}
-            className="text-center"
+            className="text-left"
           >
-            <p className="text-gray-400 italic text-sm max-w-md">"{floatingQuotes[currentQuoteIndex]}"</p>
+            <p
+              className="text-gray-200/90 italic max-w-xl"
+              style={{
+                fontSize: '1.25rem',
+                lineHeight: 1.5,
+                fontFamily: `"SF Pro Display", "Segoe UI", system-ui, -apple-system, Arial, sans-serif`,
+                textShadow: '0 1px 2px rgba(0,0,0,0.35)'
+              }}
+            >
+              “{floatingQuotes[currentQuoteIndex]}”
+            </p>
           </motion.div>
         </AnimatePresence>
       </motion.div>
@@ -185,15 +195,15 @@ export function EnhancedHeroSection() {
           className="space-y-6"
         >
 
-          {/* Simple Icon */}
+          {/* Refined Icon */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
             className="flex justify-center"
           >
-            <div className="bg-white/10 p-3 rounded-full backdrop-blur-sm border border-white/20">
-              <BookOpen className="w-8 h-8 text-white" />
+            <div className="p-3 rounded-xl backdrop-blur-sm border border-white/20 bg-gradient-to-br from-purple-500/30 via-fuchsia-500/20 to-indigo-500/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_10px_30px_rgba(0,0,0,0.35)]">
+              <Sparkles className="w-8 h-8 text-white" />
             </div>
           </motion.div>
 
@@ -225,13 +235,20 @@ export function EnhancedHeroSection() {
           >
             <Button
               onClick={scrollToContent}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-lg transition-all duration-300"
+              className="bg-gradient-to-r from-[#1e1e1f] to-[#2a0a37] hover:from-[#252526] hover:to-[#3a0f4d] text-white px-6 py-3 rounded-xl transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_12px_30px_rgba(0,0,0,0.35)]"
             >
               Explore Collection
             </Button>
           </motion.div>
         </motion.div>
       </motion.div>
+
+      {/* Bookmark Prompt (subtle) */}
+      <div className="absolute top-6 right-6 hidden md:block">
+        <div className="glass-card px-4 py-2 rounded-xl text-sm text-gray-200/90">
+          Tip: Press Ctrl+D to bookmark
+        </div>
+      </div>
 
       {/* Scroll Indicator */}
       <motion.div

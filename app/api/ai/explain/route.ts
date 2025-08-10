@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GeminiService } from '@/lib/gemini-service'
+export const runtime = 'nodejs'
+import { UnifiedAIService } from '@/lib/unified-ai-service'
 
 // POST /api/ai/explain - explain a piece of writing using Gemini
 export async function POST(request: NextRequest) {
@@ -8,7 +9,8 @@ export async function POST(request: NextRequest) {
     if (!content || typeof content !== 'string') {
       return NextResponse.json({ success: false, error: 'Missing content' }, { status: 400 })
     }
-    const answer = await GeminiService.explainText(
+    // Use unified service with per-use-case model selection
+    const answer = await UnifiedAIService['explainText']?.(
       [
         category ? `Category: ${category}` : null,
         type ? `Type: ${type}` : null,

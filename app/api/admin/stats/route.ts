@@ -5,6 +5,7 @@ import { DatabaseService } from '@/lib/database-service'
 import { CacheService } from '@/lib/cache-service'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function GET() {
   try {

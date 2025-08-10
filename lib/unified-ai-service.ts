@@ -44,7 +44,7 @@ export class UnifiedAIService {
   /**
    * Get the current AI provider from admin settings
    */
-  private static async getCurrentProvider(forcedProvider?: AIProvider): Promise<{ provider: AIProvider; config: ProviderConfig; enableFallback: boolean; settings?: Record<string, string> }> {
+  private static async getCurrentProvider(forcedProvider?: AIProvider, useCase?: 'generate' | 'findSource' | 'explain' | 'analyze'): Promise<{ provider: AIProvider; config: ProviderConfig; enableFallback: boolean; settings?: Record<string, string> }> {
     try {
       // Import DatabaseService dynamically to avoid circular imports
       const { DatabaseService } = await import('./database-service')
@@ -53,30 +53,42 @@ export class UnifiedAIService {
       const settings = await DatabaseService.getSettings()
       
       if (settings) {
-        const provider = forcedProvider || (settings.defaultAiProvider as AIProvider) || 'openai'
+        // Per-use-case provider override
+        const providerOverride =
+          useCase === 'generate' ? (settings.aiGenerateProvider as AIProvider) :
+          useCase === 'findSource' ? (settings.aiFindSourceProvider as AIProvider) :
+          useCase === 'explain' ? (settings.aiExplainProvider as AIProvider) :
+          undefined
+
+        const provider = forcedProvider || providerOverride || (settings.defaultAiProvider as AIProvider) || 'openai'
         
         const parsedTemp = settings.aiTemperature ? parseFloat(settings.aiTemperature) : undefined
         const parsedMax = settings.aiMaxTokens ? parseInt(settings.aiMaxTokens) : undefined
         const enableFallback = settings.aiEnableProviderFallback !== 'false'
 
+        // Per-use-case model overrides
+        const openaiModelOverride = (useCase === 'generate' ? settings.aiGenerateModel : (useCase === 'findSource' ? settings.aiFindSourceModel : undefined)) || settings.openaiModel
+        const geminiModelOverride = (useCase === 'generate' ? settings.aiGenerateModel : (useCase === 'findSource' ? settings.aiFindSourceModel : undefined)) || settings.geminiModel
+        const deepseekModelOverride = (useCase === 'generate' ? settings.aiGenerateModel : (useCase === 'findSource' ? settings.aiFindSourceModel : undefined)) || settings.deepseekModel
+
         const configs = {
           openai: {
             apiKey: settings.openaiApiKey || process.env.OPENAI_API_KEY || '',
-            model: settings.openaiModel || 'gpt-4o',
+            model: openaiModelOverride || 'gpt-4o',
             fallbackModel: 'gpt-3.5-turbo',
             maxTokens: parsedMax || 2000,
             temperature: typeof parsedTemp === 'number' ? parsedTemp : 0.9
           },
           gemini: {
             apiKey: settings.geminiApiKey || process.env.GEMINI_API_KEY || '',
-            model: settings.geminiModel || 'gemini-2.0-flash-thinking-exp-1219',  // Latest and best model
+            model: geminiModelOverride || 'gemini-2.0-flash-thinking-exp-1219',  // Latest and best model
             fallbackModel: 'gemini-2.0-flash-exp',
             maxTokens: parsedMax || 2000,
             temperature: typeof parsedTemp === 'number' ? parsedTemp : 0.9
           },
           deepseek: {
             apiKey: settings.deepseekApiKey || process.env.DEEPSEEK_API_KEY || '',
-            model: settings.deepseekModel || 'deepseek-chat-v3',
+            model: deepseekModelOverride || 'deepseek-chat-v3',
             fallbackModel: 'deepseek-chat-v3-0324',
             maxTokens: parsedMax || 2000,
             temperature: typeof parsedTemp === 'number' ? parsedTemp : 0.8
@@ -166,6 +178,170 @@ export class UnifiedAIService {
   }
 
   /**
+   * Explain helper using selected provider with optional model override (settings.aiExplainModel)
+   */
+  static async explainText(content: string, question: string): Promise<string> {
+    const { provider, config, settings } = await this.getCurrentProvider(undefined, 'explain')
+    const modelOverride = settings?.aiExplainModel
+
+    if (provider === 'gemini') {
+      const client = this.getGeminiClient(config.apiKey)
+      const model = client.getGenerativeModel({ model: modelOverride || config.model })
+      const result = await model.generateContent([
+        'You are a helpful literary assistant. Provide a concise, clear explanation in 4-8 sentences. Avoid spoilers when possible.',
+        `Writing:\n"""\n${content}\n"""`,
+        `Question: ${question || 'Explain this in simple terms.'}`
+      ])
+      const text = typeof result.response?.text === 'function' ? result.response.text() : ''
+      return (text || '').toString().trim() || 'No explanation available.'
+    }
+
+    if (provider === 'openai') {
+      const client = this.getOpenAIClient(config.apiKey)
+      const completion = await client.chat.completions.create({
+        model: modelOverride || config.model,
+        messages: [
+          { role: 'system', content: 'You are a helpful literary assistant. Provide a concise, clear explanation in 4-8 sentences. Avoid spoilers when possible.' },
+          { role: 'user', content: `Writing:\n"""\n${content}\n"""\nQuestion: ${question || 'Explain this in simple terms.'}` }
+        ],
+        max_tokens: 600,
+        temperature: 0.5
+      })
+      return completion.choices[0]?.message?.content?.trim() || 'No explanation available.'
+    }
+
+    // DeepSeek via OpenRouter
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.apiKey}`,
+        'HTTP-Referer': 'https://literaryshowcase.com',
+        'X-Title': 'Literary Showcase',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: `deepseek/${modelOverride || config.model}`,
+        messages: [
+          { role: 'system', content: 'You are a helpful literary assistant. Provide a concise, clear explanation in 4-8 sentences. Avoid spoilers when possible.' },
+          { role: 'user', content: `Writing:\n"""\n${content}\n"""\nQuestion: ${question || 'Explain this in simple terms.'}` }
+        ],
+        max_tokens: 600,
+        temperature: 0.5
+      })
+    })
+    if (!response.ok) return 'No explanation available.'
+    const data = await response.json().catch(() => null)
+    const text = data?.choices?.[0]?.message?.content || ''
+    return (text || '').trim() || 'No explanation available.'
+  }
+
+  /**
+   * Deep literary analysis (structured JSON) using selected provider.
+   */
+  static async analyzeText(content: string, meta?: { author?: string; category?: string; type?: string; source?: string }) {
+    const { provider, config, settings } = await this.getCurrentProvider(undefined, 'analyze')
+    const modelOverride = settings?.aiAnalyzeModel
+
+    // Helper to normalize structure
+    const normalize = (obj: any) => {
+      const asArray = (v: any) => Array.isArray(v) ? v : []
+      const asString = (v: any) => typeof v === 'string' ? v : ''
+      return {
+        themes: asArray(obj.themes).slice(0, 6),
+        literaryDevices: asArray(obj.literaryDevices).slice(0, 8).map((d: any) => ({
+          name: asString(d?.name).slice(0, 80),
+          quote: asString(d?.quote).slice(0, 140) || undefined,
+          explanation: asString(d?.explanation).slice(0, 280),
+        })),
+        metaphors: asArray(obj.metaphors).slice(0, 6),
+        tone: asString(obj.tone).slice(0, 60),
+        style: asString(obj.style).slice(0, 80),
+        imagery: asArray(obj.imagery).slice(0, 10),
+        summary: asString(obj.summary).slice(0, 800),
+      }
+    }
+
+    // Provider-specific
+    if (provider === 'gemini') {
+      const { GeminiService } = await import('./gemini-service')
+      return await GeminiService.analyzeLiterary(content, meta)
+    }
+
+    const schemaPrompt = (context: string) => `You are a literary analyst. Analyze the writing and return ONLY valid JSON with this exact schema:
+{
+  "themes": string[] (3-6 concise core themes),
+  "literaryDevices": Array<{ "name": string; "quote"?: string; "explanation": string }>,
+  "metaphors": string[] (2-6 short metaphors/paraphrases),
+  "tone": string,
+  "style": string,
+  "imagery": string[] (key images as short phrases),
+  "summary": string (3-5 sentences)
+}
+
+${context}
+
+TEXT:\n"""\n${content}\n"""`
+
+    const context = [
+      meta?.category ? `Category: ${meta.category}` : null,
+      meta?.type ? `Type: ${meta.type}` : null,
+      meta?.author ? `Author: ${meta.author}` : null,
+      meta?.source ? `Source: ${meta.source}` : null,
+    ].filter(Boolean).join('\n')
+
+    // OpenAI path
+    if (provider === 'openai') {
+      const client = this.getOpenAIClient(config.apiKey)
+      const completion = await client.chat.completions.create({
+        model: modelOverride || config.model,
+        messages: [
+          { role: 'system', content: 'You are a literary analyst. Return only valid JSON.' },
+          { role: 'user', content: schemaPrompt(context) }
+        ],
+        temperature: 0.4,
+        max_tokens: 1200
+      })
+      const raw = completion.choices[0]?.message?.content || ''
+      try {
+        const start = raw.indexOf('{'); const end = raw.lastIndexOf('}')
+        const body = start >= 0 && end > start ? raw.slice(start, end + 1) : raw
+        return normalize(JSON.parse(body))
+      } catch {
+        return normalize({})
+      }
+    }
+
+    // DeepSeek (OpenRouter)
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.apiKey}`,
+        'HTTP-Referer': 'https://literaryshowcase.com',
+        'X-Title': 'Literary Showcase',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: `deepseek/${modelOverride || config.model}`,
+        messages: [
+          { role: 'system', content: 'You are a literary analyst. Return only valid JSON.' },
+          { role: 'user', content: schemaPrompt(context) }
+        ],
+        temperature: 0.4,
+        max_tokens: 1200
+      })
+    })
+    const data = response.ok ? await response.json().catch(() => null) : null
+    const raw = data?.choices?.[0]?.message?.content || ''
+    try {
+      const start = raw.indexOf('{'); const end = raw.lastIndexOf('}')
+      const body = start >= 0 && end > start ? raw.slice(start, end + 1) : raw
+      return normalize(JSON.parse(body))
+    } catch {
+      return normalize({})
+    }
+  }
+
+  /**
    * Make request to DeepSeek via OpenRouter (OpenAI-compatible)
    */
   private static async callDeepSeek(
@@ -203,7 +379,7 @@ export class UnifiedAIService {
    */
   static async findSourceInfo(content: string): Promise<SourceInfo> {
     try {
-      const { provider, config } = await this.getCurrentProvider()
+      const { provider, config } = await this.getCurrentProvider(undefined, 'findSource')
 
       if (!config.apiKey || config.apiKey.length < 10) {
         console.warn(`[UnifiedAI] No valid API key configured for ${provider}`)
@@ -413,7 +589,8 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
    */
   static async generateContent(params: GenerationParameters, options?: { provider?: AIProvider }): Promise<GeneratedContent[]> {
     try {
-      const { provider, config, enableFallback, settings } = await this.getCurrentProvider(options?.provider)
+      const { provider, config, enableFallback, settings } = await this.getCurrentProvider(options?.provider, 'generate')
+      // Apply explain/analyze overrides when invoked from public explain endpoint
 
       if (!config.apiKey) {
         console.warn(`[UnifiedAI] No API key configured for ${provider}`)

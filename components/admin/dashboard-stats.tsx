@@ -72,12 +72,6 @@ export function DashboardStats() {
       color: "from-indigo-500 to-purple-500",
     },
     {
-      label: "Total Likes",
-      value: stats.totals.likes || 0,
-      icon: Sparkles,
-      color: "from-pink-500 to-rose-500",
-    },
-    {
       label: "Quotes",
       value: types.quote || 0,
       icon: Quote,

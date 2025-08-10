@@ -80,14 +80,7 @@ export function OCRSettings({
       status: ocrProviderStatus['gemini'],
       settingKey: 'geminiOcrEnabled'
     },
-    {
-      id: 'free-ocr-ai',
-      name: 'FreeOCR.AI',
-      description: 'Latest VLM technology. Best for preserving formatting.',
-      features: ['VLM technology', 'Format preservation', 'No sign-up required'],
-      status: ocrProviderStatus['free-ocr-ai'],
-      settingKey: 'freeOcrAiEnabled'
-    }
+    // FreeOCR.AI is currently unavailable; hidden from UI
   ]
 
   const ocrSettings = [

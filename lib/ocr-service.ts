@@ -17,7 +17,6 @@ interface OCRError {
 export class OCRService {
   private static readonly FREE_PROVIDERS = [
     'ocr-space',
-    'free-ocr-ai', 
     'gemini'
   ] as const
 
@@ -49,9 +48,7 @@ export class OCRService {
           case 'ocr-space':
             result = await this.extractWithOCRSpace(imageBuffer, mimeType)
             break
-          case 'free-ocr-ai':
-            result = await this.extractWithFreeOCRAI(imageBuffer, mimeType)
-            break
+          // 'free-ocr-ai' removed because the service is unavailable
           case 'gemini':
             result = await this.extractWithGemini(imageBuffer, mimeType)
             break
@@ -183,16 +180,7 @@ export class OCRService {
   /**
    * FreeOCR.AI API - Latest VLM technology, free to use
    */
-  private static async extractWithFreeOCRAI(imageBuffer: Buffer, mimeType: string): Promise<OCRResult> {
-    // FreeOCR.AI doesn't have a direct API, but we can simulate their technology
-    // using a similar approach with base64 encoding and smart text extraction
-    
-    const base64Image = imageBuffer.toString('base64')
-    
-    // For now, we'll use a simpler extraction method
-    // In a real implementation, you might integrate with their web service
-    throw new Error('FreeOCR.AI integration pending - requires web scraping or direct integration')
-  }
+  // FreeOCR.AI integration removed
 
   /**
    * Gemini API fallback - enhanced with better error handling
@@ -399,11 +387,7 @@ Extract the text now:`
       error: !geminiApiKey ? 'API key not configured' : undefined
     })
 
-    status.push({
-      provider: 'free-ocr-ai',
-      available: false,
-      error: 'Integration pending'
-    })
+    // FreeOCR.AI status removed
 
     return status
   }

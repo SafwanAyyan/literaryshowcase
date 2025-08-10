@@ -37,7 +37,7 @@ export default function GuidesPage() {
     <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative py-16 px-4">
       <div className="max-w-5xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white/10 border border-white/20 mb-4">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/10 border border-white/20 mb-4">
             <BookOpen className="w-7 h-7 text-white" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white">Beginner’s Guide to English Literature</h1>

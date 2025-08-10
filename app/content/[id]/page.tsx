@@ -46,7 +46,7 @@ export default async function ContentDetail({ params }: { params: { id: string }
             <blockquote className="text-gray-100 leading-relaxed font-medium text-lg whitespace-pre-line">{item.content}</blockquote>
           )}
 
-          <div className="mt-6 flex items-center justify-between">
+          <div className="mt-6 flex items-center gap-3">
             <div className="text-gray-300">— {item.author}</div>
             <ContentDetailClient id={item.id} content={item.content} author={item.author} category={item.category} source={item.source || undefined} type={item.type} variant="like-only" />
           </div>

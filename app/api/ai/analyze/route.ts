@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GeminiService } from '@/lib/gemini-service'
+export const runtime = 'nodejs'
+import { UnifiedAIService } from '@/lib/unified-ai-service'
 import { CacheService } from '@/lib/cache-service'
 import crypto from 'crypto'
 
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
     const hash = crypto.createHash('sha1').update(content).digest('hex')
     const cacheKey = `analysis:${id || 'noid'}:${hash}`
     const analysis = await CacheService.getOrSet(cacheKey, () =>
-      GeminiService.analyzeLiterary(content, { author, category, type, source })
+      UnifiedAIService.analyzeText(content, { author, category, type, source })
     , CacheService.TTL.LONG)
     return NextResponse.json({ success: true, analysis })
   } catch (error) {
