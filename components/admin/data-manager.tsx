@@ -53,16 +53,29 @@ export function DataManager() {
         throw new Error("Invalid data format")
       }
 
-      // Clear existing data and import new data
-      for (const item of parsed.data) {
-        await DatabaseService.addContent(item)
+      // Use the API endpoint instead of direct database service
+      const response = await fetch('/api/content/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ items: parsed.data }),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to import data via API')
       }
       
       toast.success(`Successfully imported ${parsed.data.length} items!`)
       setImportFile(null)
       
-      // Refresh the page to show updated data
-      setTimeout(() => window.location.reload(), 1500)
+      // Use content refresh system instead of page reload
+      setTimeout(() => {
+        // Trigger content refresh for real-time updates
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('content-updated'))
+        }
+      }, 1000)
     } catch (error: any) {
       toast.error(error.message || "Failed to import data")
     } finally {
@@ -73,11 +86,23 @@ export function DataManager() {
   const handleReset = async () => {
     if (confirm("Are you sure you want to reset all data to default? This cannot be undone!")) {
       try {
-        // Note: You'll need to implement this in DatabaseService if needed
-        toast.success("Reset functionality would be implemented here")
-        // For now, just show a message
+        const response = await fetch('/api/admin/reset', {
+          method: 'POST',
+        })
+        
+        if (response.ok) {
+          toast.success("Data reset to defaults successfully!")
+          // Trigger content refresh
+          setTimeout(() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('content-updated'))
+            }
+          }, 1000)
+        } else {
+          throw new Error('Reset operation failed')
+        }
       } catch (error) {
-        toast.error("Failed to reset data")
+        toast.error("Reset functionality is not yet implemented")
       }
     }
   }

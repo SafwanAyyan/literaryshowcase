@@ -4,7 +4,7 @@ import { getToken } from 'next-auth/jwt'
 
 const secret = process.env.NEXTAUTH_SECRET
 
-// Simple in-memory cache for maintenance status (resets on server restart)
+// Enhanced in-memory cache for maintenance status (resets on server restart)
 let maintenanceCache: {
   enabled: boolean
   lastCheck: number
@@ -15,7 +15,7 @@ let maintenanceCache: {
   allowedEmails: ''
 }
 
-const CACHE_DURATION = 30000 // 30 seconds
+const CACHE_DURATION = 60000 // 60 seconds (increased from 30s for better performance)
 
 // Helper function to check if maintenance mode is enabled
 async function isMaintenanceModeEnabled(): Promise<{ enabled: boolean; allowedEmails: string }> {
@@ -103,6 +103,50 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // Lightweight pageview/visit counter for admin metrics
+  let response = NextResponse.next()
+  try {
+    // Count all real pages (including admin), skip static and API
+    const isPage = !pathname.startsWith('/api/') && !pathname.startsWith('/_next/') && !pathname.includes('.')
+    if (isPage) {
+      const now = new Date()
+      const today = now.toISOString().slice(0, 10)
+      const hourKey = now.toISOString().slice(0, 13) // YYYY-MM-DDTHH
+      const origin = request.nextUrl.origin || process.env.NEXTAUTH_URL || 'http://localhost:3000'
+      // Record a pageview at most once per hour per client
+      const pvCookieName = `pv_${hourKey}`
+      const hasPv = request.cookies.get(pvCookieName)
+      if (!hasPv) {
+        fetch(`${origin}/api/admin/metrics/ingest`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: today, type: 'pageview' })
+        }).catch(() => {})
+        response.cookies.set(pvCookieName, '1', {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+          maxAge: 60 * 60 // 1 hour
+        })
+      }
+
+      // Record a visit once per day via cookie guard
+      const visitCookieName = `v_${today}`
+      const hasVisit = request.cookies.get(visitCookieName)
+      if (!hasVisit) {
+        fetch(`${origin}/api/admin/metrics/ingest`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: today, type: 'visit' })
+        }).catch(() => {})
+        response.cookies.set(visitCookieName, '1', {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+          maxAge: 60 * 60 * 24 // 1 day
+        })
+      }
+    }
+  } catch {}
+
   // Check if maintenance mode is enabled
   const maintenanceStatus = await isMaintenanceModeEnabled()
   
@@ -140,7 +184,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next()
+  return response
 }
 
 export const config = {

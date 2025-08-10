@@ -18,6 +18,7 @@ const categories: { value: Category | "all"; label: string }[] = [
   { value: "literary-masters", label: "Literary Masters" },
   { value: "spiritual", label: "Spiritual" },
   { value: "original-poetry", label: "Original Poetry" },
+  { value: "heartbreak", label: "Heartbreak" },
 ]
 
 export function CategoryFilter({

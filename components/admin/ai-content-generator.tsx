@@ -24,6 +24,7 @@ export function AIContentGenerator() {
   const [theme, setTheme] = useState("")
   const [tone, setTone] = useState("inspirational")
   const [provider, setProvider] = useState<"openai" | "gemini" | "both">("openai")
+  const [writingMode, setWritingMode] = useState<"known-writers" | "original-ai">("original-ai")
 
   const handleGenerate = async () => {
     setIsGenerating(true)
@@ -40,7 +41,8 @@ export function AIContentGenerator() {
           theme,
           tone,
           quantity,
-          provider
+          provider,
+          writingMode
         }),
       })
 
@@ -198,6 +200,56 @@ Love is always there.`
           </div>
         </div>
 
+        {/* Writing Mode Selection */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-300 mb-3">Writing Mode</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                writingMode === 'original-ai'
+                  ? 'border-purple-500 bg-purple-500/20'
+                  : 'border-white/20 bg-white/5 hover:border-purple-400'
+              }`}
+              onClick={() => setWritingMode('original-ai')}
+            >
+              <div className="flex items-center mb-2">
+                <div className={`w-4 h-4 rounded-full border-2 mr-3 ${
+                  writingMode === 'original-ai' ? 'border-purple-500 bg-purple-500' : 'border-gray-400'
+                }`} />
+                <h3 className="text-white font-medium">Original AI Writing</h3>
+              </div>
+              <p className="text-gray-300 text-sm">
+                AI creates completely original content from its own creativity and understanding. 
+                Produces unique, authentic pieces with fresh perspectives and original voice.
+              </p>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                writingMode === 'known-writers'
+                  ? 'border-purple-500 bg-purple-500/20'
+                  : 'border-white/20 bg-white/5 hover:border-purple-400'
+              }`}
+              onClick={() => setWritingMode('known-writers')}
+            >
+              <div className="flex items-center mb-2">
+                <div className={`w-4 h-4 rounded-full border-2 mr-3 ${
+                  writingMode === 'known-writers' ? 'border-purple-500 bg-purple-500' : 'border-gray-400'
+                }`} />
+                <h3 className="text-white font-medium">Known Writers Style</h3>
+              </div>
+              <p className="text-gray-300 text-sm">
+                AI writes in the style of famous authors and writers from the selected genre. 
+                Emulates the voice, techniques, and wisdom of literary masters and renowned figures.
+              </p>
+            </motion.div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
@@ -211,6 +263,7 @@ Love is always there.`
               <option value="literary-masters">Literary Masters</option>
               <option value="spiritual">Spiritual</option>
               <option value="original-poetry">Original Poetry</option>
+              <option value="heartbreak">Heartbreak</option>
             </select>
           </div>
 

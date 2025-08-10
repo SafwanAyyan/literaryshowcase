@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { BookOpen } from "lucide-react"
+import { BookOpen, Send } from "lucide-react"
 import Link from "next/link"
 
 export function Navigation() {
@@ -24,7 +24,16 @@ export function Navigation() {
             </div>
           </Link>
           
-          {/* Admin access removed - admins go directly to /admin */}
+          <div className="flex items-center space-x-4">
+            <Link href="/guides" className="text-gray-300 hover:text-white">Guides</Link>
+            <Link
+              href="/submit"
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+            >
+              <Send className="w-4 h-4" />
+              <span className="hidden sm:inline">Submit Content</span>
+            </Link>
+          </div>
         </div>
       </div>
     </motion.nav>

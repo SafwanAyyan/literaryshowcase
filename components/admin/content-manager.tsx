@@ -15,6 +15,7 @@ export function ContentManager() {
   const [filterCategory, setFilterCategory] = useState<Category | "all">("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [isFindingSource, setIsFindingSource] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const itemsPerPage = 10
 
   const [newItem, setNewItem] = useState<Omit<ContentItem, "id">>({
@@ -41,7 +42,41 @@ export function ContentManager() {
       }
     }
     loadContent()
-  }, [])
+    
+    // Function to check for extracted text in localStorage
+    const checkForExtractedText = () => {
+      const extractedText = localStorage.getItem('literary-extracted-text')
+      if (extractedText && isAddingNew) {
+        setNewItem(prev => ({
+          ...prev,
+          content: extractedText
+        }))
+        // Clear the localStorage after using
+        localStorage.removeItem('literary-extracted-text')
+        toast.success('Text from Image-to-Text has been loaded into the form!')
+      }
+    }
+    
+    // Listen for text extracted from Image-to-Text feature
+    const handleTextExtracted = (event: CustomEvent) => {
+      if (isAddingNew && event.detail?.text) {
+        setNewItem(prev => ({
+          ...prev,
+          content: event.detail.text
+        }))
+        toast.success('Text from Image-to-Text has been added to the form!')
+      }
+    }
+
+    window.addEventListener('textExtracted', handleTextExtracted as EventListener)
+    
+    // Check for extracted text when component mounts or isAddingNew changes
+    checkForExtractedText()
+    
+    return () => {
+      window.removeEventListener('textExtracted', handleTextExtracted as EventListener)
+    }
+  }, [isAddingNew])
 
   const filteredContent = content.filter((item) => {
     const matchesSearch =
@@ -164,6 +199,62 @@ export function ContentManager() {
       } catch (error) {
         toast.error('Failed to delete content')
       }
+    }
+  }
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const clearSelection = () => setSelectedIds(new Set())
+
+  const bulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    if (!confirm(`Delete ${selectedIds.size} selected item(s)?`)) return
+    try {
+      const response = await fetch('/api/content/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: { type: 'delete', ids: Array.from(selectedIds) } })
+      })
+      const result = await response.json()
+      if (result.success) {
+        setContent(content.filter(c => !selectedIds.has(c.id)))
+        clearSelection()
+        ContentRefresh.notifyContentChange()
+        toast.success('Selected items deleted')
+      } else {
+        toast.error(result.error || 'Bulk delete failed')
+      }
+    } catch (e) {
+      toast.error('Bulk delete failed')
+    }
+  }
+
+  const bulkSetAuthor = async (author: string) => {
+    if (selectedIds.size === 0) return
+    try {
+      const response = await fetch('/api/content/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: { type: 'setAuthor', ids: Array.from(selectedIds), value: author } })
+      })
+      const result = await response.json()
+      if (result.success) {
+        setContent(content.map(c => selectedIds.has(c.id) ? { ...c, author } : c))
+        clearSelection()
+        ContentRefresh.notifyContentChange()
+        toast.success(`Updated author to ${author}`)
+      } else {
+        toast.error(result.error || 'Bulk update failed')
+      }
+    } catch (e) {
+      toast.error('Bulk update failed')
     }
   }
 
@@ -330,6 +421,7 @@ export function ContentManager() {
                   <option value="literary-masters">Literary Masters</option>
                   <option value="spiritual">Spiritual</option>
                   <option value="original-poetry">Original Poetry</option>
+                  <option value="heartbreak">Heartbreak</option>
                 </select>
               </div>
               <div>
@@ -365,42 +457,63 @@ export function ContentManager() {
         )}
       </AnimatePresence>
 
+      {/* Bulk actions */}
+      {selectedIds.size > 0 && (
+        <div className="glass-card p-4 flex flex-wrap items-center gap-3 border border-purple-500/20">
+          <span className="text-white text-sm">{selectedIds.size} selected</span>
+          <button onClick={() => bulkSetAuthor('Anonymous')} className="px-3 py-2 rounded-lg bg-white/10 text-white hover:bg-white/15 text-sm">Set author: Anonymous</button>
+          <button onClick={() => bulkSetAuthor('Unknown')} className="px-3 py-2 rounded-lg bg-white/10 text-white hover:bg-white/15 text-sm">Set author: Unknown</button>
+          <button onClick={() => {
+            const a = prompt('Set author to:')
+            if (a !== null) bulkSetAuthor(a.trim() || 'Anonymous')
+          }} className="px-3 py-2 rounded-lg bg-white/10 text-white hover:bg-white/15 text-sm">Set custom author…</button>
+          <button onClick={bulkDelete} className="px-3 py-2 rounded-lg bg-red-600/80 hover:bg-red-600 text-white text-sm">Delete selected</button>
+          <button onClick={clearSelection} className="ml-auto px-3 py-2 rounded-lg bg-white/10 text-white hover:bg-white/15 text-sm">Clear</button>
+        </div>
+      )}
+
       {/* Content List */}
-      <div className="glass-card p-6">
-        <div className="space-y-4">
-          {paginatedContent.map((item, index) => (
+      <div className="glass-card p-6 max-h-[70vh] overflow-auto">
+        <div className="space-y-3">
+          {paginatedContent.map((item) => (
             <motion.div
               key={item.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all duration-300"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className={`bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-colors ${selectedIds.has(item.id) ? 'ring-2 ring-purple-500/50' : ''}`}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-shrink-0">
+                  <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="w-4 h-4 mt-1" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full whitespace-nowrap">
                       {item.category}
                     </span>
-                    <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full">
+                    <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full whitespace-nowrap">
                       {item.type}
                     </span>
                   </div>
-                  <p className="text-white text-sm mb-2 line-clamp-3">{item.content}</p>
-                  <p className="text-gray-400 text-xs">
+                  <p className="text-white text-sm mb-2 line-clamp-3 break-words whitespace-pre-wrap">
+                    {item.content}
+                  </p>
+                  <p className="text-gray-400 text-xs truncate">
                     By {item.author} {item.source && `• ${item.source}`}
                   </p>
                 </div>
-                <div className="flex items-center space-x-2 ml-4">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={() => handleEdit(item)}
-                    className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all duration-300"
+                    className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                    aria-label="Edit"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(item.id)}
-                    className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-300"
+                    className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                    aria-label="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

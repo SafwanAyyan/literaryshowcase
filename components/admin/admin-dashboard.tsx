@@ -3,17 +3,23 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { signOut } from "next-auth/react"
-import { PlusCircle, FileText, Bot, BarChart3, Database, Settings, LogOut, Home, AlertTriangle, Save } from "lucide-react"
-import { toast } from "react-hot-toast"
+import { PlusCircle, FileText, Bot, BarChart3, Database, Settings, LogOut, Home, AlertTriangle, Save, Image, Eye, Activity, Users } from "lucide-react"
+import toast from "react-hot-toast"
 import { FloatingParticles } from "@/components/floating-particles"
 import { InteractiveBackground } from "@/components/interactive-background"
 import { ContentManager } from "./content-manager"
 import { AIContentGenerator } from "./ai-content-generator"
 import { DashboardStats } from "./dashboard-stats"
 import { DataManager } from "./data-manager"
+import { AIProvidersSettings } from "./ai-providers-settings"
+import { ImageToText } from "./image-to-text"
+import { SubmissionsPanel } from "./submissions-panel"
+import { OCRSettings } from "./ocr-settings"
+import { PerformanceMonitor } from "./performance-monitor"
+import { ContentImporter } from "./content-importer"
 import Link from "next/link"
 
-type AdminView = "dashboard" | "content" | "ai-generator" | "data-manager" | "settings"
+type AdminView = "dashboard" | "content" | "ai-generator" | "data-manager" | "image-to-text" | "settings" | "submissions"
 
 export function AdminDashboard() {
   const [currentView, setCurrentView] = useState<AdminView>("dashboard")
@@ -21,8 +27,11 @@ export function AdminDashboard() {
   const navigationItems = [
     { id: "dashboard", label: "Dashboard", icon: BarChart3 },
     { id: "content", label: "Manage Content", icon: FileText },
+    { id: "import", label: "Bulk Import", icon: Database },
     { id: "ai-generator", label: "AI Generator", icon: Bot },
     { id: "data-manager", label: "Data Manager", icon: Database },
+    { id: "image-to-text", label: "Image to Text", icon: Image },
+    { id: "submissions", label: "Submissions", icon: Users },
     { id: "settings", label: "Settings", icon: Settings },
   ]
 
@@ -34,6 +43,17 @@ export function AdminDashboard() {
         return <AIContentGenerator />
       case "data-manager":
         return <DataManager />
+      case "import":
+        return <ContentImporter />
+      case "image-to-text":
+        return <ImageToText />
+      case "submissions":
+        return <SubmissionsPanel onSubmissionUpdate={() => {
+          // Refresh dashboard stats when submissions are updated
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('content-updated'))
+          }
+        }} />
       case "settings":
         return <AdminSettings />
       default:
@@ -41,10 +61,12 @@ export function AdminDashboard() {
     }
   }
 
+  const showBackground = currentView === 'dashboard'
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative">
-      <InteractiveBackground />
-      <FloatingParticles />
+      {showBackground && <InteractiveBackground />}
+      {showBackground && <FloatingParticles />}
 
       <div className="relative z-10 flex">
         {/* Sidebar */}
@@ -98,11 +120,11 @@ export function AdminDashboard() {
         </motion.div>
 
         {/* Main Content */}
-        <div className="flex-1 p-8">
+        <div className="flex-1 p-4 sm:p-8 overflow-hidden">
           <motion.div
             key={currentView}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
             {renderCurrentView()}
@@ -118,14 +140,40 @@ function AdminSettings() {
     maintenanceMode: 'false',
     openaiApiKey: '',
     geminiApiKey: '',
+    deepseekApiKey: '',
     defaultAiProvider: 'openai',
+    openaiModel: 'gpt-4o',
+    geminiModel: 'gemini-2.5-pro',
+    deepseekModel: 'deepseek-chat-v3',
     maintenanceMessage: 'The Literary Showcase is currently undergoing maintenance. Please check back soon!',
     siteName: 'Literary Showcase',
-    allowedMaintenanceEmails: ''
+    allowedMaintenanceEmails: '',
+    // OCR Settings
+    ocrDefaultProvider: 'ocr-space',
+    ocrFallbackEnabled: 'true',
+    ocrLanguage: 'eng',
+    ocrQuality: 'balanced',
+    ocrEnhanceImage: 'true',
+    ocrDetectOrientation: 'true',
+    ocrMaxFileSize: '5',
+    ocrTimeout: '30',
+    ocrCacheDuration: '30',
+    ocrRateLimit: '100',
+    ocrLogRequests: 'true',
+    ocrSecureMode: 'true',
+    ocrSpaceEnabled: 'true',
+    geminiOcrEnabled: 'true',
+    freeOcrAiEnabled: 'false'
+    ,
+    // AI tuning
+    aiTemperature: '0.9',
+    aiMaxTokens: '2000',
+    aiEnableProviderFallback: 'true'
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'general' | 'ai' | 'maintenance'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'ai' | 'ocr' | 'performance' | 'maintenance'>('general')
+  const [testingProvider, setTestingProvider] = useState<string | null>(null)
 
   useEffect(() => {
     loadSettings()
@@ -179,40 +227,7 @@ function AdminSettings() {
     }))
   }
 
-  const testApiConnection = async (provider: 'openai' | 'gemini') => {
-    try {
-      const apiKey = provider === 'openai' ? settings.openaiApiKey : settings.geminiApiKey
-      if (!apiKey) {
-        toast.error(`Please enter ${provider === 'openai' ? 'OpenAI' : 'Gemini'} API key first`)
-        return
-      }
-
-      // Test the connection
-      toast.info(`Testing ${provider} connection...`)
-      
-      const response = await fetch('/api/admin/test-api', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          provider,
-          apiKey
-        })
-      })
-
-      const result = await response.json()
-      
-      if (result.success) {
-        toast.success(`${provider.toUpperCase()} connection test successful!`)
-      } else {
-        toast.error(`${provider.toUpperCase()} connection test failed: ${result.error}`)
-      }
-    } catch (error: any) {
-      console.error(`${provider} test failed:`, error)
-      toast.error(`${provider.toUpperCase()} connection test failed: ${error.message}`)
-    }
-  }
+  // Removed old testApiConnection function - now handled by AI Providers Settings component
 
   const handleMaintenanceToggle = async (enabled: boolean) => {
     try {
@@ -271,6 +286,8 @@ function AdminSettings() {
   const tabs = [
     { id: 'general', label: 'General', icon: Settings },
     { id: 'ai', label: 'AI Providers', icon: Bot },
+    { id: 'ocr', label: 'OCR Settings', icon: Eye },
+    { id: 'performance', label: 'Performance', icon: Activity },
     { id: 'maintenance', label: 'Maintenance', icon: AlertTriangle }
   ]
 
@@ -322,60 +339,25 @@ function AdminSettings() {
         )}
 
         {activeTab === 'ai' && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-white mb-4">AI Provider Settings</h2>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Default AI Provider</label>
-              <select
-                value={settings.defaultAiProvider}
-                onChange={(e) => handleSettingChange('defaultAiProvider', e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="openai">OpenAI (GPT-4o)</option>
-                <option value="gemini">Google Gemini</option>
-                <option value="both">Both Providers</option>
-              </select>
-            </div>
+          <AIProvidersSettings 
+            settings={settings}
+            onSettingChange={handleSettingChange}
+            testingProvider={testingProvider}
+            setTestingProvider={setTestingProvider}
+          />
+        )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">OpenAI API Key</label>
-              <div className="flex space-x-2">
-                <input
-                  type="password"
-                  value={settings.openaiApiKey}
-                  onChange={(e) => handleSettingChange('openaiApiKey', e.target.value)}
-                  className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="sk-..."
-                />
-                <button
-                  onClick={() => testApiConnection('openai')}
-                  className="px-4 py-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 hover:bg-green-500/30 transition-all duration-200"
-                >
-                  Test
-                </button>
-              </div>
-            </div>
+        {activeTab === 'ocr' && (
+          <OCRSettings 
+            settings={settings}
+            onSettingChange={handleSettingChange}
+            testingProvider={testingProvider}
+            setTestingProvider={setTestingProvider}
+          />
+        )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Gemini API Key</label>
-              <div className="flex space-x-2">
-                <input
-                  type="password"
-                  value={settings.geminiApiKey}
-                  onChange={(e) => handleSettingChange('geminiApiKey', e.target.value)}
-                  className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="AIza..."
-                />
-                <button
-                  onClick={() => testApiConnection('gemini')}
-                  className="px-4 py-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 hover:bg-green-500/30 transition-all duration-200"
-                >
-                  Test
-                </button>
-              </div>
-            </div>
-          </div>
+        {activeTab === 'performance' && (
+          <PerformanceMonitor />
         )}
 
         {activeTab === 'maintenance' && (

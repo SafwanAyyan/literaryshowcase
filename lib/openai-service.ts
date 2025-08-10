@@ -8,6 +8,7 @@ interface GenerationParameters {
   theme?: string
   tone: string
   quantity: number
+  writingMode?: 'known-writers' | 'original-ai'
 }
 
 interface GeneratedContent {
@@ -94,7 +95,7 @@ export class OpenAIService {
 
       return items.map((item: any) => ({
         content: item.content || item.text || '',
-        author: this.getAuthorForType(params.type, item.author),
+        author: this.getAuthorForType(params.type, item.author, params.writingMode),
         source: item.source || undefined,
         category: params.category,
         type: params.type
@@ -170,7 +171,12 @@ export class OpenAIService {
     return basePrompt
   }
 
-  private static getAuthorForType(type: string, suggestedAuthor?: string): string {
+  private static getAuthorForType(type: string, suggestedAuthor?: string, writingMode: string = 'original-ai'): string {
+    // For Original AI mode, use "Anonymous" for all AI-generated content
+    if (writingMode === 'original-ai') {
+      return 'Anonymous'
+    }
+    
     if (suggestedAuthor && suggestedAuthor.trim()) {
       return suggestedAuthor.trim()
     }
@@ -194,7 +200,6 @@ export class OpenAIService {
     
     for (let i = 0; i < params.quantity; i++) {
       let content: string
-      let author: string = "Anonymous"
       
       switch (params.type) {
         case 'quote':
@@ -202,7 +207,6 @@ export class OpenAIService {
           break
         case 'poem':
           content = this.generateFallbackPoem(params.theme, params.tone, i)
-          author = "AI Generated"
           break
         case 'reflection':
           content = this.generateFallbackReflection(params.theme, params.tone, i)
@@ -210,6 +214,9 @@ export class OpenAIService {
         default:
           content = this.generateFallbackQuote(params.theme, params.tone, i)
       }
+      
+      // Use the same author generation logic as the main function
+      const author = this.getAuthorForType(params.type, undefined, params.writingMode || 'original-ai')
       
       generatedItems.push({
         content,

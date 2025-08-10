@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { OpenAIService } from '@/lib/openai-service'
+import { UnifiedAIService } from '@/lib/unified-ai-service'
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,10 +23,10 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const sourceInfo = await OpenAIService.findSourceInfo(content.trim())
+      const sourceInfo = await UnifiedAIService.findSourceInfo(content.trim())
       return NextResponse.json({ success: true, data: sourceInfo })
     } catch (error: any) {
-      console.error('Error finding source with OpenAI:', error)
+      console.error('Error finding source with AI provider:', error)
       return NextResponse.json(
         { success: false, error: error.message || 'Failed to find source information' },
         { status: 500 }

@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import React, { useState } from "react"
+// Removed framer-motion in this card to avoid JSX member parsing issues on some toolchains
 import { Quote, User, Calendar, ChevronDown, ChevronUp, BookOpen, Sparkles } from "lucide-react"
 import { PoemDisplay } from "./poem-display"
+import { ArrowRight } from "lucide-react"
 import type { ContentItem } from "@/types/literary"
+import Link from "next/link"
 
 interface EnhancedContentCardProps {
   item: ContentItem
@@ -35,16 +37,16 @@ export function EnhancedContentCard({ item }: EnhancedContentCardProps) {
       return `${baseClasses} p-8 border-purple-400/20 bg-gradient-to-br from-purple-900/10 to-pink-900/5`
     }
     return `${baseClasses} p-6`
-  }
+  };
 
   return (
-    <motion.div
-      layout
-      whileHover={{ y: -5, scale: 1.01 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-      className={getCardStyle()}
-      onClick={() => (shouldTruncate || isLongPoem) && setIsExpanded(!isExpanded)}
-    >
+    <div className="relative rounded-2xl p-[1.5px] bg-gradient-to-br from-white/10 via-purple-500/20 to-transparent hover:via-pink-500/25 transition-colors">
+      <div
+        className={getCardStyle() + " relative overflow-hidden rounded-2xl backdrop-blur-md bg-white/5 border border-white/10 transform transition-transform duration-200 hover:-translate-y-1 hover:shadow-purple-500/20 hover:shadow-xl"}
+        onClick={() => {
+          if (shouldTruncate || isLongPoem) setIsExpanded(!isExpanded)
+        }}
+      >
       {/* Header */}
       <div className="flex items-start gap-3 mb-6">
         <div className="bg-gradient-to-r from-purple-400/20 to-pink-400/20 p-2 rounded-lg flex-shrink-0">
@@ -68,44 +70,32 @@ export function EnhancedContentCard({ item }: EnhancedContentCardProps) {
 
       {/* Content - Flex grow to fill available space */}
       <div className="flex-grow mb-4">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={isExpanded ? "expanded" : "collapsed"}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            {isPoem ? (
-              <PoemDisplay
-                content={isExpanded ? item.content : truncatedContent}
-                title={item.source}
-                author={item.author}
-                isExpanded={isExpanded}
-              />
-            ) : (
-              <blockquote className="text-gray-100 leading-relaxed font-medium text-base sm:text-lg">
-                <span
-                  dangerouslySetInnerHTML={{
-                    __html: (isExpanded ? item.content : truncatedContent)
-                      .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
-                      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-                      .replace(/\*(.+?)\*/g, "<em>$1</em>")
-                      .replace(/~(.+?)~/g, '<span class="text-purple-300">$1</span>'),
-                  }}
-                />
-              </blockquote>
-            )}
-          </motion.div>
-        </AnimatePresence>
+        {isPoem ? (
+          <PoemDisplay
+            content={isExpanded ? item.content : truncatedContent}
+            title={item.source}
+            author={item.author}
+            isExpanded={isExpanded}
+          />
+        ) : (
+          <blockquote className="text-gray-100 leading-relaxed font-medium text-base sm:text-lg transition-opacity">
+            <span
+              dangerouslySetInnerHTML={{
+                __html: (isExpanded ? item.content : truncatedContent)
+                  .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
+                  .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+                  .replace(/\*(.+?)\*/g, "<em>$1</em>")
+                  .replace(/~(.+?)~/g, '<span class="text-purple-300">$1</span>'),
+              }}
+            />
+          </blockquote>
+        )}
       </div>
 
       {/* Expand/Collapse Button */}
       {(shouldTruncate || isLongPoem) && (
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-2 text-purple-300 hover:text-purple-200 text-sm font-medium mb-4 transition-colors group"
+        <button
+          className="flex items-center gap-2 text-purple-300 hover:text-purple-200 text-sm font-medium mb-4 transition-transform transform hover:scale-[1.02] group"
         >
           {isExpanded ? (
             <>
@@ -118,7 +108,7 @@ export function EnhancedContentCard({ item }: EnhancedContentCardProps) {
               {isPoem ? "Read full poem" : "Read more"}
             </>
           )}
-        </motion.button>
+        </button>
       )}
 
       {/* Footer - Stick to bottom */}
@@ -142,8 +132,17 @@ export function EnhancedContentCard({ item }: EnhancedContentCardProps) {
             ~{Math.ceil(item.content.split(" ").length / 200)} min read
           </div>
         )}
+        <div className="mt-4">
+          <Link prefetch href={`/content/${item.id}`} className="group inline-flex items-center justify-center w-full px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md hover:shadow-purple-500/25 hover:from-purple-700 hover:to-pink-700 transition-all">
+            <span className="mr-2">View details</span>
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
       </div>
-    </motion.div>
+      {/* Close inner card container */}
+      </div>
+      {/* Close outer gradient frame */}
+    </div>
   )
 }
 
@@ -154,6 +153,7 @@ function getCategoryStyle(category: string): string {
     "literary-masters": "bg-green-400/20 text-green-300 border border-green-400/30",
     spiritual: "bg-yellow-400/20 text-yellow-300 border border-yellow-400/30",
     "original-poetry": "bg-purple-400/20 text-purple-300 border border-purple-400/30",
+    heartbreak: "bg-rose-400/20 text-rose-300 border border-rose-400/30",
   }
   return styles[category as keyof typeof styles] || "bg-gray-400/20 text-gray-300 border border-gray-400/30"
 }
@@ -165,6 +165,7 @@ function getCategoryLabel(category: string): string {
     "literary-masters": "Literary Master",
     spiritual: "Spiritual",
     "original-poetry": "Original Poetry",
+    heartbreak: "Heartbreak",
   }
   return labels[category as keyof typeof labels] || "Unknown"
 }

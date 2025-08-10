@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -65,7 +65,7 @@ model ContentItem {
   content   String
   author    String
   source    String?
-  category  String   // "found-made", "cinema", "literary-masters", "spiritual", "original-poetry"
+  category  String   // "found-made", "cinema", "literary-masters", "spiritual", "original-poetry", "heartbreak"
   type      String   // "quote", "poem", "reflection"
   
   // Additional metadata
@@ -85,6 +85,9 @@ model ContentItem {
   @@index([type])
   @@index([published])
   @@index([createdAt])
+  @@index([author])
+  @@index([likes])
+  @@index([views])
 }
 
 model GenerationLog {
@@ -107,4 +110,42 @@ model AdminSettings {
   description String?
   
   updatedAt   DateTime @updatedAt
+}
+
+model DailyMetric {
+  // YYYY-MM-DD as ID for easy upsert per day
+  date       String   @id
+  visits     Int      @default(0)
+  pageviews  Int      @default(0)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+model Submission {
+  id          String   @id @default(cuid())
+  content     String
+  author      String
+  source      String?
+  category    String   // "found-made", "cinema", "literary-masters", "spiritual", "original-poetry", "heartbreak"
+  type        String   // "quote", "poem", "reflection"
+  
+  // Submission metadata
+  submitterName    String?
+  submitterEmail   String?
+  submitterMessage String?
+  status           String   @default("pending") // "pending", "approved", "rejected"
+  adminNotes       String?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  reviewedAt DateTime?
+  reviewedBy String?
+  
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
 }

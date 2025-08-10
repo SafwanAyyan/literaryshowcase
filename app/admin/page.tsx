@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { AdminDashboard } from "@/components/admin/admin-dashboard"
-import { LoadingSpinner } from "@/components/loading-spinner"
+import { LoadingSpinner } from "@/components/enhanced-loading-spinner"
 
 export default function AdminPage() {
   const { data: session, status } = useSession()

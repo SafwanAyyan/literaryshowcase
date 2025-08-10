@@ -14,8 +14,17 @@ export const config = {
   // Gemini Configuration
   gemini: {
     apiKey: process.env.GEMINI_API_KEY || '',
-    model: 'gemini-2.0-flash-exp', // Latest Gemini 2.0 model
-    fallbackModel: 'gemini-1.5-pro',
+    model: 'gemini-2.5-pro', // Latest Gemini 2.5 Pro model
+    fallbackModel: 'gemini-2.0-flash-exp',
+    maxTokens: 2000,
+    temperature: 0.8,
+  },
+
+  // DeepSeek Configuration
+  deepseek: {
+    apiKey: process.env.DEEPSEEK_API_KEY || '',
+    model: 'deepseek-chat-v3', // Latest DeepSeek V3 model
+    fallbackModel: 'deepseek-chat-v3-0324',
     maxTokens: 2000,
     temperature: 0.8,
   },
@@ -81,4 +90,4 @@ export function validateConfig() {
 }
 
 // Export individual config sections for easier imports
-export const { openai, database, auth, admin, app, features, rateLimit } = config
+export const { openai, gemini, deepseek, database, auth, admin, app, features, rateLimit } = config

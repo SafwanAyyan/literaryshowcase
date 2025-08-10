@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { DatabaseService } from '@/lib/database-service'
+import { CacheService } from '@/lib/cache-service'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
@@ -13,7 +16,7 @@ export async function GET() {
       )
     }
 
-    const stats = await DatabaseService.getStatistics()
+    const stats = await CacheService.getOrSet('content-statistics', () => DatabaseService.getStatistics(), CacheService.TTL.STATS)
     return NextResponse.json({ success: true, data: stats })
   } catch (error) {
     console.error('Error fetching statistics:', error)
