@@ -4,6 +4,9 @@ import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { useState, useEffect } from "react"
 import { BookOpen, Feather, Heart, Quote, Sparkles, ChevronDown, Library } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import Link from 'next/link'
+import { PaperPlane } from 'lucide-react'
+import { GradientButton } from './ui/gradient-button'
 
 const floatingQuotes = [
   "Words have no single fixed meaning...",
@@ -239,6 +242,11 @@ export function EnhancedHeroSection() {
             >
               Explore Collection
             </Button>
+            <div className="mt-3 flex justify-center">
+              <Link href="/submit">
+                <GradientButton leftIcon={<PaperPlane className="w-4 h-4" />}>Submit Your Content</GradientButton>
+              </Link>
+            </div>
           </motion.div>
         </motion.div>
       </motion.div>

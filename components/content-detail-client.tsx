@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { Heart } from 'lucide-react'
+import { Heart, Send } from 'lucide-react'
+import { GradientButton } from './ui/gradient-button'
 
 type Props = {
   id: string
@@ -137,17 +138,9 @@ export function ContentDetailClient({ id, content, author, category, source, typ
   return (
     <div className="w-full">
       {(variant === 'like-only' || variant === 'all') && (
-        <button
-          onClick={toggleLike}
-          disabled={busy}
-          className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-full border transition-all duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_20px_rgba(0,0,0,0.35)] ${
-            liked
-              ? 'bg-gradient-to-r from-[#2a0a37] to-[#1e1e1f] text-white border-transparent'
-              : 'bg-white/10 text-white/90 border-white/15 hover:bg-white/15'
-          } disabled:opacity-60`}
-        >
-          <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} /> {liked ? 'Liked' : 'Like'}
-        </button>
+        <GradientButton onClick={toggleLike} disabled={busy} leftIcon={<Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />}>
+          {liked ? 'Liked' : 'Like'}
+        </GradientButton>
       )}
 
       {(variant === 'ai-only' || variant === 'all') && (
@@ -160,13 +153,9 @@ export function ContentDetailClient({ id, content, author, category, source, typ
               onChange={(e) => setQuestion(e.target.value)}
               className="w-full min-h-28 bg-white/5 border border-white/10 rounded-xl text-white p-3 focus:outline-none focus:ring-2 focus:ring-purple-400/50"
             />
-            <button
-              onClick={ask}
-              disabled={loading}
-              className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white disabled:opacity-60 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_20px_rgba(0,0,0,0.35)]"
-            >
+            <GradientButton onClick={ask} disabled={loading} leftIcon={<Send className="w-4 h-4" />} rounded="xl">
               {loading ? 'Thinking…' : 'Ask'}
-            </button>
+            </GradientButton>
             {answer && (
               <div className="rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-transparent p-4 text-purple-100 whitespace-pre-wrap">
                 {answer}
@@ -174,7 +163,7 @@ export function ContentDetailClient({ id, content, author, category, source, typ
             )}
           </div>
           <div className="mt-6 text-center">
-            <button
+            <GradientButton
               onClick={async () => {
                 setAnalyzing(true)
                 try {
@@ -191,10 +180,10 @@ export function ContentDetailClient({ id, content, author, category, source, typ
                 }
               }}
               disabled={analyzing}
-              className="inline-flex items-center justify-center px-5 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white disabled:opacity-60 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_20px_rgba(0,0,0,0.35)]"
+              rounded="xl"
             >
               {analyzing ? 'Analyzing…' : 'Deep literary analysis'}
-            </button>
+            </GradientButton>
             {analysis && (
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <div className="rounded-xl border border-white/10 p-4 bg-white/5">
