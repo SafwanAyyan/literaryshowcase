@@ -116,7 +116,7 @@ export async function middleware(request: NextRequest) {
       // Record a pageview at most once per hour per client
       const pvCookieName = `pv_${hourKey}`
       const hasPv = request.cookies.get(pvCookieName)
-      if (!hasPv) {
+       if (!hasPv) {
         fetch(`${origin}/api/admin/metrics/ingest`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ date: today, type: 'pageview' })
@@ -132,7 +132,7 @@ export async function middleware(request: NextRequest) {
       // Record a visit once per day via cookie guard
       const visitCookieName = `v_${today}`
       const hasVisit = request.cookies.get(visitCookieName)
-      if (!hasVisit) {
+       if (!hasVisit) {
         fetch(`${origin}/api/admin/metrics/ingest`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ date: today, type: 'visit' })

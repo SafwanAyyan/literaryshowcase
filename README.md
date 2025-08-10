@@ -58,6 +58,7 @@ npx prisma migrate dev --name init
 3. Build uses `npm run vercel-build` (runs `prisma generate`, `prisma db push`, `next build`).
 4. On Vercel, ensure the project is on the Node.js runtime (not Edge) for API routes that use Prisma. This repo already sets Node runtime via route exports.
 5. If you see a provider mismatch error (sqlite vs postgresql), deploy with `db push` first (this repo does that) or reset your local migrations and re-create them.
+6. If you do not yet have a production database provisioned, the metrics ingest endpoint will safely no-op to avoid errors. Set `DATABASE_URL` later to enable metrics persistence.
 
 ## Metrics
 Middleware samples pageviews (hourly) and visits (daily) with cookies. Admin dashboard charts daily and weekly series.
