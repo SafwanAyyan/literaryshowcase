@@ -55,9 +55,9 @@ npx prisma migrate dev --name init
     - `NEXTAUTH_SECRET = <your-strong-secret>` (must be set for auth and signed cookies)
    - `NEXTAUTH_URL = https://<your-vercel-domain>`
    - Optional: `OPENAI_API_KEY`, `GEMINI_API_KEY`
-3. Build uses `npm run vercel-build` (runs `prisma generate`, `prisma migrate deploy`, `next build`).
-4. On Vercel, ensure the project is on the Node.js runtime (not Edge) for API routes that use Prisma. This repo already sets Node runtime via route exports and `vercel.json`.
-5. If you see "PrismaClientInitializationError", re-check `DATABASE_URL`, ensure the database exists, and re-deploy so `migrate deploy` runs cleanly.
+3. Build uses `npm run vercel-build` (runs `prisma generate`, `prisma db push`, `next build`).
+4. On Vercel, ensure the project is on the Node.js runtime (not Edge) for API routes that use Prisma. This repo already sets Node runtime via route exports.
+5. If you see a provider mismatch error (sqlite vs postgresql), deploy with `db push` first (this repo does that) or reset your local migrations and re-create them.
 
 ## Metrics
 Middleware samples pageviews (hourly) and visits (daily) with cookies. Admin dashboard charts daily and weekly series.
