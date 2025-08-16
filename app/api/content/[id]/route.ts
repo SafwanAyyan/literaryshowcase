@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { DatabaseService } from '@/lib/database-service'
 
+export const runtime = 'nodejs'
+
 // GET /api/content/[id] - Get content by ID
 export async function GET(
   request: NextRequest,

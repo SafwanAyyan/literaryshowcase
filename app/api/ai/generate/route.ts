@@ -3,6 +3,7 @@ export const runtime = 'nodejs'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { UnifiedAIService } from '@/lib/unified-ai-service'
+import type { AIProvider } from '@/lib/unified-ai-service'
 import { DatabaseService } from '@/lib/database-service'
 import type { Category } from '@/types/literary'
 
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { category, type, theme, tone, quantity, writingMode } = body
+    const { category, type, theme, tone, quantity, writingMode, provider } = body
 
     if (!category || !type || !tone || !quantity) {
       return NextResponse.json(
@@ -44,19 +45,53 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Use the unified AI service - it will automatically select the configured provider
-      const generated = await UnifiedAIService.generateContent(generationParams)
-      
+      // Respect explicit provider selection from UI; support "both" aggregation
+      let generated: any[] = []
+      const seen = new Set<string>()
+
+      const pushUnique = (items: any[]) => {
+        for (const it of items) {
+          const key = (it?.content || '').toLowerCase().trim()
+          if (!key || seen.has(key)) continue
+          seen.add(key)
+          generated.push(it)
+        }
+      }
+
+      if (provider === 'both') {
+        const [openaiItems, geminiItems] = await Promise.all([
+          UnifiedAIService.generateContent(generationParams, { provider: 'openai' as AIProvider }),
+          UnifiedAIService.generateContent(generationParams, { provider: 'gemini' as AIProvider })
+        ])
+        pushUnique(openaiItems)
+        pushUnique(geminiItems)
+
+        // If still short, attempt DeepSeek when configured
+        if (generated.length < generationParams.quantity) {
+          try {
+            const deepseekItems = await UnifiedAIService.generateContent(generationParams, { provider: 'deepseek' as AIProvider })
+            pushUnique(deepseekItems)
+          } catch {
+            // ignore tertiary failure
+          }
+        }
+
+        generated = generated.slice(0, generationParams.quantity)
+      } else {
+        const selected = provider as AIProvider | undefined
+        generated = await UnifiedAIService.generateContent(generationParams, selected ? { provider: selected } : undefined)
+      }
+
       // Log the generation attempt
       await DatabaseService.logGeneration({
         prompt: `Generate ${quantity} ${type}s in ${tone} tone about ${theme || 'general'} for ${category}`,
-        parameters: generationParams,
+        parameters: { ...generationParams, provider: provider || 'auto' },
         itemsCount: generated.length,
         success: true
       })
       
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         data: generated
       })
     } catch (aiError: any) {

@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -20,7 +21,7 @@ model User {
   role          String    @default("user") // "admin" or "user"
   accounts      Account[]
   sessions      Session[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -61,26 +62,26 @@ model VerificationToken {
 }
 
 model ContentItem {
-  id        String   @id @default(cuid())
-  content   String
-  author    String
-  source    String?
-  category  String   // "found-made", "cinema", "literary-masters", "spiritual", "original-poetry", "heartbreak"
-  type      String   // "quote", "poem", "reflection"
-  
+  id       String  @id @default(cuid())
+  content  String
+  author   String
+  source   String?
+  category String // "found-made", "cinema", "literary-masters", "spiritual", "original-poetry", "heartbreak"
+  type     String // "quote", "poem", "reflection"
+
   // Additional metadata
-  tags      String?  // JSON array of tags
-  featured  Boolean  @default(false)
-  published Boolean  @default(true)
-  
+  tags      String? // JSON array of tags
+  featured  Boolean @default(false)
+  published Boolean @default(true)
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // SEO and Analytics
-  views     Int      @default(0)
-  likes     Int      @default(0)
-  
+  views Int @default(0)
+  likes Int @default(0)
+
   @@index([category])
   @@index([type])
   @@index([published])
@@ -91,61 +92,122 @@ model ContentItem {
 }
 
 model GenerationLog {
-  id          String   @id @default(cuid())
-  prompt      String
-  parameters  String   // JSON object with generation parameters
-  itemsCount  Int
-  success     Boolean
-  error       String?
-  
-  createdAt   DateTime @default(now())
-  
+  id         String  @id @default(cuid())
+  prompt     String
+  parameters String // JSON object with generation parameters
+  itemsCount Int
+  success    Boolean
+  error      String?
+
+  createdAt DateTime @default(now())
+
   @@index([createdAt])
 }
 
 model AdminSettings {
-  id          String   @id @default(cuid())
-  key         String   @unique
+  id          String  @id @default(cuid())
+  key         String  @unique
   value       String
   description String?
-  
-  updatedAt   DateTime @updatedAt
+
+  updatedAt DateTime @updatedAt
 }
 
 model DailyMetric {
   // YYYY-MM-DD as ID for easy upsert per day
-  date       String   @id
-  visits     Int      @default(0)
-  pageviews  Int      @default(0)
+  date      String @id
+  visits    Int    @default(0)
+  pageviews Int    @default(0)
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([createdAt])
 }
 
 model Submission {
-  id          String   @id @default(cuid())
-  content     String
-  author      String
-  source      String?
-  category    String   // "found-made", "cinema", "literary-masters", "spiritual", "original-poetry", "heartbreak"
-  type        String   // "quote", "poem", "reflection"
-  
+  id       String  @id @default(cuid())
+  content  String
+  author   String
+  source   String?
+  category String // "found-made", "cinema", "literary-masters", "spiritual", "original-poetry", "heartbreak"
+  type     String // "quote", "poem", "reflection"
+
   // Submission metadata
   submitterName    String?
   submitterEmail   String?
   submitterMessage String?
-  status           String   @default("pending") // "pending", "approved", "rejected"
+  status           String  @default("pending") // "pending", "approved", "rejected"
   adminNotes       String?
-  
+
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
   reviewedAt DateTime?
   reviewedBy String?
-  
+
   @@index([status])
   @@index([category])
   @@index([createdAt])
+}
+
+// --- Added for durable AI configuration and prompt versioning ---
+
+model AIProviderConfig {
+  id        String   @id @default(cuid())
+  provider  String   // 'openai' | 'gemini' | 'deepseek' or any configured provider id
+  model     String
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([provider, isActive])
+}
+
+model SystemPrompt {
+  id        String   @id @default(cuid())
+  useCase   String   // e.g., 'explain', 'analyze', 'generate', 'findSource', 'metaphor-analysis'
+  provider  String?  // optional: provider this prompt is optimized for
+  model     String?  // optional: model this prompt is optimized for
+  content   String   // base/system prompt content
+  version   Int      @default(1)
+  active    Boolean  @default(true)
+
+  createdBy String?
+  updatedBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions  SystemPromptVersion[]
+
+  @@index([useCase])
+}
+
+model SystemPromptVersion {
+  id        String   @id @default(cuid())
+  promptId  String
+  version   Int
+  provider  String?
+  model     String?
+  content   String
+  editor    String?
+  createdAt DateTime @default(now())
+
+  prompt    SystemPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@index([promptId, version])
+}
+
+model PromptAudit {
+  id          String   @id @default(cuid())
+  action      String   // 'create' | 'update' | 'rollback' | 'activate' | 'deactivate'
+  useCase     String
+  editor      String?
+  fromVersion Int?
+  toVersion   Int?
+  createdAt   DateTime @default(now())
+
+  @@index([useCase, createdAt])
 }

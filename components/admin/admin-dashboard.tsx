@@ -18,8 +18,11 @@ import { OCRSettings } from "./ocr-settings"
 import { PerformanceMonitor } from "./performance-monitor"
 import { ContentImporter } from "./content-importer"
 import Link from "next/link"
+import { PromptManager } from "./prompt-manager"
+import { CategoryPromptOverrides } from "./category-prompt-overrides"
+import { Button } from "@/components/ui/button"
 
-type AdminView = "dashboard" | "content" | "ai-generator" | "data-manager" | "image-to-text" | "settings" | "submissions"
+type AdminView = "dashboard" | "content" | "ai-generator" | "data-manager" | "image-to-text" | "settings" | "submissions" | "import"
 
 export function AdminDashboard() {
   const [currentView, setCurrentView] = useState<AdminView>("dashboard")
@@ -172,7 +175,7 @@ function AdminSettings() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'general' | 'ai' | 'ocr' | 'performance' | 'maintenance'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'ai' | 'prompts' | 'ocr' | 'performance' | 'maintenance'>('general')
   const [testingProvider, setTestingProvider] = useState<string | null>(null)
 
   useEffect(() => {
@@ -252,7 +255,7 @@ function AdminSettings() {
         toast.success(result.message)
         
         if (result.requiresRestart) {
-          toast.info('Changes will take full effect on next server restart', {
+          toast('Changes will take full effect on next server restart', {
             duration: 5000
           })
         }
@@ -286,6 +289,7 @@ function AdminSettings() {
   const tabs = [
     { id: 'general', label: 'General', icon: Settings },
     { id: 'ai', label: 'AI Providers', icon: Bot },
+    { id: 'prompts', label: 'Prompts', icon: FileText },
     { id: 'ocr', label: 'OCR Settings', icon: Eye },
     { id: 'performance', label: 'Performance', icon: Activity },
     { id: 'maintenance', label: 'Maintenance', icon: AlertTriangle }
@@ -339,12 +343,21 @@ function AdminSettings() {
         )}
 
         {activeTab === 'ai' && (
-          <AIProvidersSettings 
+          <AIProvidersSettings
             settings={settings}
             onSettingChange={handleSettingChange}
             testingProvider={testingProvider}
             setTestingProvider={setTestingProvider}
           />
+        )}
+
+        {activeTab === 'prompts' && (
+          <div className="space-y-6">
+            <PromptManager />
+            <div className="border-t border-white/10 pt-6">
+              <CategoryPromptOverrides />
+            </div>
+          </div>
         )}
 
         {activeTab === 'ocr' && (
@@ -417,14 +430,10 @@ function AdminSettings() {
 
         {/* Save Button */}
         <div className="flex justify-end pt-6 border-t border-white/10">
-          <button
-            onClick={saveSettings}
-            disabled={isSaving}
-            className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-all duration-300"
-          >
-            <Save className="w-4 h-4" />
-            <span>{isSaving ? 'Saving...' : 'Save Settings'}</span>
-          </button>
+          <Button onClick={saveSettings} disabled={isSaving} variant="brand" size="lg" round="pill">
+            {isSaving ? <Save className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <span>{isSaving ? 'Saving…' : 'Save Settings'}</span>
+          </Button>
         </div>
       </div>
     </div>

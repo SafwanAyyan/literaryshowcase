@@ -136,7 +136,11 @@ Question: ${question || 'Explain this in simple terms.'}`
    * Deep literary analysis using Gemini 2.5 Pro.
    * Returns structured JSON with themes, devices, metaphors, tone, style, imagery and summary.
    */
-  static async analyzeLiterary(content: string, meta?: { author?: string; category?: string; type?: string; source?: string }) {
+  static async analyzeLiterary(
+    content: string,
+    meta?: { author?: string; category?: string; type?: string; source?: string },
+    options?: { systemPromptOverride?: string }
+  ) {
     const client = this.getClient()
 
     const makePrompt = () => {
@@ -220,7 +224,7 @@ TEXT:\n"""\n${content}\n"""`
       } as any
 
       const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: makePrompt() }] }],
+        contents: [{ role: 'user', parts: [{ text: `${(options?.systemPromptOverride || 'You are a precise literary analyst. Keep sections concise while faithful to the text.')} \n\n${makePrompt()}` }] }],
         generationConfig: {
           temperature: 0.4,
           maxOutputTokens: 1100,

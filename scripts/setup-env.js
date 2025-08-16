@@ -10,8 +10,9 @@ const envContent = `# Literary Showcase Environment Configuration
 # OpenAI Configuration (Add your API key from https://platform.openai.com/api-keys)
 OPENAI_API_KEY=your_openai_api_key_here
 
-# Database (SQLite for local development)
-DATABASE_URL="file:./dev.db"
+# Database (PostgreSQL for local/production)
+# Example: "postgres://USER:PASSWORD@HOST:5432/DB?sslmode=require"
+DATABASE_URL="postgres://USER:PASSWORD@HOST:5432/DB?sslmode=require"
 
 # NextAuth Configuration
 NEXTAUTH_URL=http://localhost:3000

@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Bot, Sparkles, Download, RefreshCw, Plus, Wand2, FileText, AlertCircle } from "lucide-react"
+import { Bot, Sparkles, Download, RefreshCw, Plus, Wand2, FileText } from "lucide-react"
 import type { Category, ContentItem } from "@/types/literary"
 import { ContentRefresh } from "@/lib/content-refresh"
 import toast from 'react-hot-toast'
+import { Button } from "@/components/ui/button"
 
 interface GeneratedContent {
   content: string
@@ -25,6 +26,11 @@ export function AIContentGenerator() {
   const [tone, setTone] = useState("inspirational")
   const [provider, setProvider] = useState<"openai" | "gemini" | "both">("openai")
   const [writingMode, setWritingMode] = useState<"known-writers" | "original-ai">("original-ai")
+
+  // Prompt preview state
+  const [composing, setComposing] = useState(false)
+  const [promptPreview, setPromptPreview] = useState<string>("")
+  const [showPreview, setShowPreview] = useState(false)
 
   const handleGenerate = async () => {
     setIsGenerating(true)
@@ -58,6 +64,35 @@ export function AIContentGenerator() {
       toast.error('Failed to generate content')
     } finally {
       setIsGenerating(false)
+    }
+  }
+
+  const handlePreviewPrompt = async () => {
+    setComposing(true)
+    setShowPreview(true)
+    try {
+      const response = await fetch('/api/ai/generate/compose', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: selectedCategory,
+          type: selectedType,
+          theme,
+          tone,
+          quantity,
+          writingMode
+        })
+      })
+      const result = await response.json()
+      if (result.success) {
+        setPromptPreview(result.prompt || '')
+      } else {
+        toast.error(result.error || 'Failed to compose prompt')
+      }
+    } catch (e) {
+      toast.error('Failed to compose prompt')
+    } finally {
+      setComposing(false)
     }
   }
 
@@ -335,26 +370,67 @@ Love is always there.`
           </div>
 
           <div className="flex items-end">
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-all duration-300 transform hover:scale-105"
-            >
-              {isGenerating ? (
-                <>
-                  <RefreshCw className="w-5 h-5 animate-spin" />
-                  <span>Generating...</span>
-                </>
-              ) : (
-                <>
-                  <Bot className="w-5 h-5" />
-                  <span>Generate</span>
-                </>
-              )}
-            </button>
+            <div className="w-full flex gap-3">
+              <Button
+                onClick={handlePreviewPrompt}
+                disabled={composing}
+                round="pill"
+                className="flex-1"
+                variant="brand"
+                size="lg"
+                title="Preview the exact composed prompt used for generation"
+              >
+                {composing ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>Previewing…</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-5 h-5" />
+                    <span>Preview Prompt</span>
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                round="pill"
+                className="flex-1"
+                variant="brand"
+                size="lg"
+              >
+                {isGenerating ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>Generating…</span>
+                  </>
+                ) : (
+                  <>
+                    <Bot className="w-5 h-5" />
+                    <span>Generate</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Prompt preview panel */}
+      {showPreview && (
+        <div className="glass-card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-white font-medium">Composed Prompt (read-only)</h3>
+            <Button variant="brand" size="sm" round="pill" onClick={() => setShowPreview(false)}>
+              Close
+            </Button>
+          </div>
+          <pre className="bg-black/40 text-purple-100 p-3 rounded-xl max-h-[260px] overflow-auto text-xs whitespace-pre-wrap">
+{promptPreview || 'No prompt available.'}
+          </pre>
+        </div>
+      )}
 
       {/* Generated Content */}
       <AnimatePresence>
@@ -370,20 +446,14 @@ Love is always there.`
                 <Sparkles className="w-5 h-5" />
                 <span>Generated Content ({generatedContent.length} items)</span>
               </h2>
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={handleSelectAll}
-                  className="text-purple-400 hover:text-purple-300 text-sm transition-colors"
-                >
+              <div className="flex items-center gap-3">
+                <Button variant="brand" size="sm" round="pill" onClick={handleSelectAll}>
                   Select All
-                </button>
-                <button
-                  onClick={handleAddSelected}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-2 rounded-lg transition-all duration-300 text-sm"
-                >
+                </Button>
+                <Button variant="brand" size="sm" round="pill" onClick={handleAddSelected}>
                   <Plus className="w-4 h-4" />
                   <span>Add Selected</span>
-                </button>
+                </Button>
               </div>
             </div>
 

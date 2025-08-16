@@ -31,7 +31,8 @@ export const config = {
 
   // Database Configuration
   database: {
-    url: process.env.DATABASE_URL || 'file:./dev.db',
+    // Prefer remote Postgres. Fall back to Accelerate if provided. No sqlite default.
+    url: process.env.DATABASE_URL || process.env.PRISMA_DATABASE_URL || '',
   },
 
   // Authentication Configuration

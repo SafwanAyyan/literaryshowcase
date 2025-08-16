@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { Category } from '@/types/literary'
+import { CategoryPromptOverrides, getCategoryOverride } from '@/lib/prompt-overrides'
 
 // Provider types
 export type AIProvider = 'openai' | 'gemini' | 'deepseek'
@@ -119,7 +120,8 @@ export class UnifiedAIService {
           fallbackModel: 'gpt-3.5-turbo',
           maxTokens: 2000,
           temperature: 0.8
-        }
+        },
+        enableFallback: true
       }
     }
 
@@ -156,6 +158,83 @@ export class UnifiedAIService {
       enableFallback: true
     }
   }
+/**
+ * Expose active provider and resolved model for a given use case.
+ * Useful for cache keying and metrics without duplicating selection logic.
+ */
+static async getActiveModel(
+  useCase?: 'generate' | 'findSource' | 'explain' | 'analyze'
+): Promise<{ provider: AIProvider; model: string }> {
+  const { provider, config, settings } = await this.getCurrentProvider(undefined, useCase)
+  const override =
+    useCase === 'explain'
+      ? settings?.aiExplainModel
+      : useCase === 'analyze'
+      ? settings?.aiAnalyzeModel
+      : undefined
+  return { provider, model: (override || config.model) as string }
+}
+
+/**
+ * Load system/base prompt for a use case from configuration store.
+ * Falls back to sensible defaults if none are configured.
+ */
+private static async getSystemPrompt(useCase: 'explain' | 'analyze'): Promise<string> {
+  try {
+    const { PromptService } = await import('./prompt-service')
+    const configured = await PromptService.getActivePrompt(useCase as any)
+    if (configured && configured.trim().length > 0) return configured.trim()
+  } catch {
+    // ignore; fall back to inline defaults
+  }
+  if (useCase === 'explain') {
+    return 'You are a helpful literary assistant. Provide a concise, faithful explanation that clearly answers the meaning behind each metaphor and how it supports the work’s themes. Structure responses with: Quoted metaphor, Meaning (emphasize), Context, and Theme connections with brief evidence. Keep total length reasonable.'
+  }
+  // analyze
+  return 'You are a precise literary analyst. Return only valid JSON and keep sections concise while faithful to the text.'
+}
+/**
+   * Extended system prompt loader that also supports 'generate' and 'findSource'.
+   * It first checks PromptService for an active prompt; if absent, returns opinionated defaults.
+   * Tokens supported in stored prompts: {{category}}, {{type}}, {{theme}}, {{tone}}, {{quantity}}, {{writingMode}}
+   */
+  private static async getSystemPromptExtended(
+    useCase: 'explain' | 'analyze' | 'generate' | 'findSource'
+  ): Promise<string> {
+    try {
+      const { PromptService } = await import('./prompt-service')
+      const configured = await PromptService.getActivePrompt(useCase as any)
+      if (configured && configured.trim().length > 0) return configured.trim()
+    } catch {
+      // ignore and fall through to defaults
+    }
+
+    if (useCase === 'explain') {
+      return 'You are a helpful literary assistant. Provide a concise, faithful explanation that clearly answers the meaning behind each metaphor and how it supports the work’s themes. Structure responses with: Quoted metaphor, Meaning (emphasize), Context, and Theme connections with brief evidence. Keep total length reasonable.'
+    }
+    if (useCase === 'analyze') {
+      return 'You are a precise literary analyst. Return only valid JSON and keep sections concise while faithful to the text.'
+    }
+    if (useCase === 'findSource') {
+      return [
+        'You are a literary and cultural expert with extensive knowledge of quotes, literature, movies, speeches, and famous sayings.',
+        'Analyze the provided text and identify its likely author and source with high accuracy. Be conservative with uncertain attributions.',
+        'Return ONLY JSON with keys: author, source?, confidence ("high" | "medium" | "low").',
+        'Prefer "Unknown" with low confidence when unsure; avoid propagating misattributions.'
+      ].join('\n')
+    }
+    // generate
+    return [
+      'You are a master curator and writer for a prestigious literary showcase.',
+      'Write with emotional depth, freshness, and authentic human cadence.',
+      'Variables: {{category}}, {{type}}, {{theme}}, {{tone}}, {{quantity}}, {{writingMode}}.',
+      'Requirements:',
+      '- Diversity: every item must be different in imagery, structure, and angle.',
+      '- Human cadence: vary sentence length, avoid filler phrases and overused words.',
+      '- No author names in content.',
+      'Response: ONLY JSON of shape {"items":[{"content":"...","source":null}]}.',
+    ].join('\n')
+  }
 
   /**
    * Get OpenAI client
@@ -180,15 +259,20 @@ export class UnifiedAIService {
   /**
    * Explain helper using selected provider with optional model override (settings.aiExplainModel)
    */
-  static async explainText(content: string, question: string): Promise<string> {
+  static async explainText(
+    content: string,
+    question: string,
+    options?: { systemPromptOverride?: string }
+  ): Promise<string> {
     const { provider, config, settings } = await this.getCurrentProvider(undefined, 'explain')
     const modelOverride = settings?.aiExplainModel
+    const sys = (options?.systemPromptOverride ?? (await this.getSystemPrompt('explain'))).trim()
 
     if (provider === 'gemini') {
       const client = this.getGeminiClient(config.apiKey)
       const model = client.getGenerativeModel({ model: modelOverride || config.model })
       const result = await model.generateContent([
-        'You are a helpful literary assistant. Provide a concise, clear explanation in 4-8 sentences. Avoid spoilers when possible.',
+        sys,
         `Writing:\n"""\n${content}\n"""`,
         `Question: ${question || 'Explain this in simple terms.'}`
       ])
@@ -201,7 +285,7 @@ export class UnifiedAIService {
       const completion = await client.chat.completions.create({
         model: modelOverride || config.model,
         messages: [
-          { role: 'system', content: 'You are a helpful literary assistant. Provide a concise, clear explanation in 4-8 sentences. Avoid spoilers when possible.' },
+          { role: 'system', content: sys },
           { role: 'user', content: `Writing:\n"""\n${content}\n"""\nQuestion: ${question || 'Explain this in simple terms.'}` }
         ],
         max_tokens: 600,
@@ -222,7 +306,7 @@ export class UnifiedAIService {
       body: JSON.stringify({
         model: `deepseek/${modelOverride || config.model}`,
         messages: [
-          { role: 'system', content: 'You are a helpful literary assistant. Provide a concise, clear explanation in 4-8 sentences. Avoid spoilers when possible.' },
+          { role: 'system', content: sys },
           { role: 'user', content: `Writing:\n"""\n${content}\n"""\nQuestion: ${question || 'Explain this in simple terms.'}` }
         ],
         max_tokens: 600,
@@ -238,9 +322,14 @@ export class UnifiedAIService {
   /**
    * Deep literary analysis (structured JSON) using selected provider.
    */
-  static async analyzeText(content: string, meta?: { author?: string; category?: string; type?: string; source?: string }) {
+  static async analyzeText(
+    content: string,
+    meta?: { author?: string; category?: string; type?: string; source?: string },
+    options?: { systemPromptOverride?: string }
+  ) {
     const { provider, config, settings } = await this.getCurrentProvider(undefined, 'analyze')
     const modelOverride = settings?.aiAnalyzeModel
+    const sys = (options?.systemPromptOverride ?? (await this.getSystemPrompt('analyze'))).trim()
 
     // Helper to normalize structure
     const normalize = (obj: any) => {
@@ -264,7 +353,7 @@ export class UnifiedAIService {
     // Provider-specific
     if (provider === 'gemini') {
       const { GeminiService } = await import('./gemini-service')
-      return await GeminiService.analyzeLiterary(content, meta)
+      return await GeminiService.analyzeLiterary(content, meta, { systemPromptOverride: sys })
     }
 
     const schemaPrompt = (context: string) => `You are a literary analyst. Analyze the writing and return ONLY valid JSON with this exact schema:
@@ -295,7 +384,7 @@ TEXT:\n"""\n${content}\n"""`
       const completion = await client.chat.completions.create({
         model: modelOverride || config.model,
         messages: [
-          { role: 'system', content: 'You are a literary analyst. Return only valid JSON.' },
+          { role: 'system', content: `${sys} Return only valid JSON.` },
           { role: 'user', content: schemaPrompt(context) }
         ],
         temperature: 0.4,
@@ -323,7 +412,7 @@ TEXT:\n"""\n${content}\n"""`
       body: JSON.stringify({
         model: `deepseek/${modelOverride || config.model}`,
         messages: [
-          { role: 'system', content: 'You are a literary analyst. Return only valid JSON.' },
+          { role: 'system', content: `${sys} Return only valid JSON.` },
           { role: 'user', content: schemaPrompt(context) }
         ],
         temperature: 0.4,
@@ -585,9 +674,19 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
   }
 
   /**
-   * Generate content using the selected AI provider
+   * Compose the exact generation prompt (no model call). Useful for UI preview.
    */
-  static async generateContent(params: GenerationParameters, options?: { provider?: AIProvider }): Promise<GeneratedContent[]> {
+  static async composeGenerationPrompt(params: GenerationParameters): Promise<string> {
+    const basePrompt = await this.getSystemPromptExtended('generate').catch(() => '')
+    const overrideText =
+      await getCategoryOverride(params.category as any).catch(() => (CategoryPromptOverrides as any)[params.category] || '')
+    return this.buildPrompt(params, basePrompt, overrideText)
+  }
+
+  /**
+    * Generate content using the selected AI provider
+    */
+   static async generateContent(params: GenerationParameters, options?: { provider?: AIProvider }): Promise<GeneratedContent[]> {
     try {
       const { provider, config, enableFallback, settings } = await this.getCurrentProvider(options?.provider, 'generate')
       // Apply explain/analyze overrides when invoked from public explain endpoint
@@ -598,8 +697,11 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
       }
 
       console.log(`[UnifiedAI] Generating content using ${provider.toUpperCase()}`)
-
-      const prompt = this.buildPrompt(params)
+ 
+      const basePrompt = await this.getSystemPromptExtended('generate').catch(() => '')
+      const overrideText =
+        await getCategoryOverride(params.category as any).catch(() => (CategoryPromptOverrides as any)[params.category] || '')
+      const prompt = this.buildPrompt(params, basePrompt, overrideText)
 
       let result: any
 
@@ -643,7 +745,10 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
             temperature: settings?.aiTemperature ? parseFloat(settings.aiTemperature) : 0.8,
           }
           try {
-            const prompt = this.buildPrompt(params)
+            const basePrompt = await this.getSystemPromptExtended('generate').catch(() => '')
+            const overrideText =
+              await getCategoryOverride(params.category as any).catch(() => (CategoryPromptOverrides as any)[params.category] || '')
+            const prompt = this.buildPrompt(params, basePrompt, overrideText)
             let result: any
             if (fallbackProvider === 'openai') result = await this.callOpenAI(config, prompt)
             else if (fallbackProvider === 'gemini') result = await this.callGemini(config, prompt)
@@ -871,258 +976,169 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
   }
 
   /**
-   * Build enhanced prompt for literary content generation with guaranteed uniqueness
+   * Build enhanced prompt for literary content generation with guaranteed uniqueness.
+   * Optionally prepends an admin-configured base prompt (supports tokens) and category override text.
    */
-  private static buildPrompt(params: GenerationParameters): string {
+  private static buildPrompt(params: GenerationParameters, basePrompt?: string, overrideText?: string): string {
     const { category, type, theme, tone, quantity, writingMode = 'original-ai' } = params
-    
+
+    // Token replacer for optional base prompt
+    const tokenize = (s: string) =>
+      (s || '')
+        .replaceAll('{{category}}', String(category))
+        .replaceAll('{{type}}', String(type))
+        .replaceAll('{{theme}}', String(theme ?? 'general'))
+        .replaceAll('{{tone}}', String(tone))
+        .replaceAll('{{quantity}}', String(quantity))
+        .replaceAll('{{writingMode}}', String(writingMode))
+
     // Multiple layers of randomization to prevent repetitive content
     const timestamp = Date.now()
     const randomSeed = Math.floor(Math.random() * 100000)
     const uniqueId = `${timestamp}-${randomSeed}-${Math.random().toString(36).substring(7)}`
-    
-    // Enhanced literary prompt system with strict uniqueness requirements
-    let systemPrompt = `You are a master literary curator and world-class writer, specializing in creating deeply moving, emotionally profound content for a prestigious literary showcase. 
 
-CRITICAL UNIQUENESS REQUIREMENTS:
-- Generate ${quantity} COMPLETELY DIFFERENT ${type}(s) in a ${tone} tone
-- Each piece must be ENTIRELY UNIQUE - no similar themes, phrases, or structures
-- Use this unique generation ID for maximum variety: ${uniqueId}
-- NEVER repeat concepts, metaphors, or emotional angles
-- Each piece should explore a different aspect of the human experience
+    let systemPrompt = ''
+    if (basePrompt && basePrompt.trim().length > 0) {
+      systemPrompt += tokenize(basePrompt.trim()) + '\n\n'
+    }
+ 
+    // If an admin base prompt already carries strong guidance, add a compact
+    // constraint layer to avoid over-constraining the model and lowering quality.
+    const compact = (basePrompt?.trim().length || 0) > 600
+ 
+    // Core generation template with strict uniqueness and human cadence constraints
+    systemPrompt += compact
+      ? `Compose ${quantity} distinct ${type}(s) in a ${tone} tone for "${category}".
+- Theme: ${theme || 'general'} | Mode: ${writingMode.toUpperCase()} | Seed: ${uniqueId}
+- Human cadence: vary rhythm, use concrete images, avoid clichés and stock advice.
+- Guarantee uniqueness across items (ideas, metaphors, structure, phrasing).`
+      : `You are a master literary curator and world-class writer, specializing in creating deeply moving, emotionally profound content for a prestigious literary showcase.
+ 
+GENERATION CONTEXT:
+- Collection: "${category}"
+- Type: ${type}
+- Theme: ${theme || 'general'}
+- Tone: ${tone}
+- Writing Mode: ${writingMode.toUpperCase()}
+- Quantity: ${quantity}
+- Uniqueness-Seed: ${uniqueId}
+ 
+HUMAN CADENCE REQUIREMENTS:
+- Vary sentence length and rhythm; avoid repetitive cadence.
+- Limit intensifiers/adverbs; prefer concrete imagery over abstractions.
+- Avoid cliché and generic motivational language (e.g., "unlock your potential", "embrace the journey", "follow your dreams").
+- Prefer specificity: tangible details, sensory images, precise verbs.
+ 
+UNIQUENESS GUARANTEES:
+- ${quantity} COMPLETELY DIFFERENT ${type}(s) in a ${tone} tone.
+- No recycling of metaphors, structures, or phrasing across items.
+- Each item must explore a distinct angle, image system, or emotional stance.`
 
-MANDATORY: If generating multiple items, ensure they cover different themes like:
-- Love and loss, hope and despair, growth and stagnation
-- Past memories, present moments, future dreams  
-- Nature, relationships, solitude, community
-- Joy, sorrow, wonder, fear, peace, turmoil
-- Different life stages: youth, maturity, aging
-- Various perspectives: optimistic, realistic, melancholic, hopeful`
-    
     if (theme) {
-      systemPrompt += ` exploring the theme of ${theme}`
+      systemPrompt += `\n- Honor the requested theme: ${theme}.`
     }
 
-    systemPrompt += ` for the "${category}" collection.
+    systemPrompt += `
+ 
+ WRITING MODE RULES:
+ ${writingMode === 'known-writers'
+   ? compact
+     ? `- Emulate general techniques of renowned authors without naming or quoting.`
+     : `- Emulate the general techniques of renowned authors in this genre without naming or directly quoting them.
+- Mirror high-level stylistic traits (syntax, pacing, imagery strategies) without imitation of specific passages.`
+   : compact
+     ? `- Produce wholly original work; do not imitate or reference specific authors or lines.`
+     : `- Produce wholly original work from your own understanding and creativity.
+- Do not imitate, reference, or hint at specific authors or famous lines.`}
+- Do NOT include author names in content; attribution is handled separately.
 
-WRITING MODE: ${writingMode.toUpperCase()}
-${writingMode === 'known-writers' ? `
-🎭 KNOWN WRITERS MODE ACTIVATED:
-- Channel the voice, style, and wisdom of famous authors from this genre
-- Emulate specific literary techniques and philosophical approaches of masters
-- Reference or echo the writing styles of renowned figures in this category
-- Create content that feels like it could be from established literary voices
-- DO NOT generate author names - the system will handle attribution automatically
-- Focus ONLY on creating content in the style of known writers
+CATEGORY GUIDANCE:`
 
-` : `
-🤖 ORIGINAL AI MODE ACTIVATED:
-- Create completely original content from your own understanding and creativity
-- Do NOT imitate or reference specific writers or their styles
-- Generate fresh, authentic voices and perspectives
-- Use your own literary sensibility and emotional intelligence
-- Create content that feels genuinely new and uniquely crafted
-- Focus on pure creative expression without mimicking existing authors
-- DO NOT generate author names - the system will handle attribution automatically
-- Focus ONLY on creating the content itself
-- All content will be attributed as "Anonymous"
-
-`}
-CRITICAL LITERARY STANDARDS:
-- Every piece must have genuine emotional depth and intellectual substance
-- Focus on universal human experiences and timeless wisdom
-- Use evocative, precise language that resonates with literary readers
-- Avoid clichés, platitudes, or superficial observations
-- Each piece should offer new insight or perspective on the human condition
-- CREATE ORIGINAL CONTENT - You are encouraged to write your own literary works, not just quote existing authors
-- VARY YOUR APPROACH - Use different themes, perspectives, literary devices, and emotional tones for each piece
-- ENSURE UNIQUENESS - Never repeat similar ideas, phrases, or structures across multiple pieces
-
-`
-
-    // Enhanced category-specific instructions with deep emotional resonance
     switch (category) {
       case 'found-made':
-        systemPrompt += `FOUND-MADE CATEGORY - MELANCHOLIC WISDOM:
-Create deeply moving insights that feel like precious truths discovered in moments of profound solitude. Each piece should:
-- Capture the bittersweet nature of human existence - the beauty found in brokenness
-- Explore themes of impermanence, lost innocence, and the weight of time
-- Use imagery of fading light, autumn leaves, empty rooms, distant memories
-- Express the ache of understanding that comes too late, love that remains unspoken
-- Touch on the loneliness that accompanies deep thinking and sensitive hearts
-- Reveal how pain transforms into wisdom, how scars become sacred
-- Focus on the tender melancholy of growing older and losing the ones we love
-
-Emotional Tone: Deeply melancholic yet beautifully crafted, like tears that heal
-Style: Contemplative, achingly beautiful, tinged with gentle sadness
-Voice: Someone who has loved deeply and lost much, yet still finds beauty in the world`
+        systemPrompt += `
+- Bittersweet insights about impermanence, memory, and time’s quiet edits.
+- Imagery: fading light, rooms after departures, worn objects, long shadows.`
         break
-        
       case 'cinema':
-        systemPrompt += `CINEMA CATEGORY - CINEMATIC SOUL:
-Create lines that capture the profound loneliness and beauty of the human condition, as if spoken in the most emotionally devastating scenes of great films:
-- Focus on moments of heartbreak, farewell, and irreversible loss
-- Capture the weight of unspoken words between lovers, friends, family
-- Express the tragedy of missed opportunities and roads not taken
-- Use dialogue that reveals the deep sadness behind every smile
-- Evoke the melancholy of rain-soaked streets, empty theaters, last dances
-- Channel the emotional depth of films like "Her", "Lost in Translation", "The Hours"
-- Create lines that would make audiences cry in the darkness of the theater
-
-Emotional Tone: Cinematically melancholic, profoundly moving
-Style: Poetic dialogue that cuts straight to the heart
-Voice: Characters in their most vulnerable, honest moments`
+        systemPrompt += `
+- Lines that feel like pivotal dialogue from intimate films; restrained, devastating, precise.
+- Imagery: rain-lit streets, afterglow in empty theaters, a last look before the door closes.`
         break
-        
       case 'literary-masters':
-        systemPrompt += `LITERARY MASTERS CATEGORY - EXISTENTIAL MELANCHOLY:
-Channel the profound sadness and philosophical depth of literature's most emotionally devastating voices:
-- Kafkaesque loneliness: The crushing weight of bureaucracy and alienation from society
-- Dostoyevskian suffering: The beautiful agony of moral complexity and spiritual torment  
-- Camusian absurdism: The melancholy of finding meaning in a meaningless world
-- Proustian memory: The bittersweet pain of time lost and innocence gone forever
-- Woolfian consciousness: The delicate sadness of inner life and mental fragility
-- Capture the existential weight of being human in an indifferent universe
-- Express the profound loneliness of the thinking, feeling soul
-
-Emotional Tone: Intellectually melancholic, existentially profound
-Style: Dense with philosophical sadness, psychologically penetrating
-Voice: The most emotionally honest passages from literature that break hearts while opening minds`
+        systemPrompt += `
+- Existential clarity with emotional gravity; philosophical yet vivid.
+- Evoke themes of alienation, moral struggle, and the ache of consciousness.`
         break
-        
       case 'spiritual':
-        systemPrompt += `SPIRITUAL CATEGORY - SACRED MELANCHOLY:
-Create deeply moving spiritual insights that acknowledge the beautiful sadness of the spiritual journey:
-- Explore the loneliness of seeking truth in a world of illusions
-- Address the grief of letting go of old selves and familiar pain
-- Capture the bittersweet nature of spiritual awakening - losing innocence to gain wisdom
-- Use imagery of dawn breaking after the darkest night, tears as holy water
-- Express the melancholy of compassion - feeling the world's suffering deeply
-- Touch on the sacred sadness of impermanence - all things must pass
-- Reveal how spiritual growth often requires walking through valleys of sorrow
-- Show how the most profound peace comes after the deepest despair
-
-Emotional Tone: Spiritually melancholic, sacredly sorrowful yet ultimately healing
-Style: Mystically beautiful, tenderly wise
-Voice: A spiritual guide who has walked through darkness to find light`
+        systemPrompt += `
+- Sacred melancholy; the tenderness of awakening and letting go.
+- Imagery: dawn after the longest night, holy water of tears, silence as teacher.`
         break
-        
       case 'original-poetry':
-        systemPrompt += `ORIGINAL POETRY CATEGORY - LYRICAL MELANCHOLY:
-Create hauntingly beautiful poems that capture the delicate sadness of existence:
-- Use imagery of twilight, empty swings, forgotten photographs, wilted flowers
-- Employ metaphors of seasons changing, birds migrating, tides retreating
-- Focus on moments of profound solitude - empty cafes, silent libraries, moonlit windows
-- Capture the ache of nostalgia, the weight of unspoken words
-- Address themes of lost love, childhood's end, parents aging, friends drifting apart
-- Use line breaks to create pauses that feel like sighs or held breath
-- Create poems that make readers feel beautifully sad, understood in their loneliness
-- Channel the melancholy of poets like Neruda, Szymborska, Oliver in her darker moments
-
-Emotional Tone: Lyrically melancholic, beautifully sorrowful
-Style: Imagistically rich, rhythmically flowing like gentle weeping
-Voice: A poet who sees beauty in sadness and finds solace in solitude`
+        systemPrompt += `
+- Lyrical, image-driven, line breaks that breathe meaning.
+- Avoid ornamentation for its own sake; pursue clarity that wounds and heals.`
         break
-        
       case 'heartbreak':
-        systemPrompt += `HEARTBREAK CATEGORY - EXQUISITE ANGUISH:
-Create devastatingly beautiful content that captures the sublime agony of a broken heart:
-- Express the specific weight of 3am loneliness when their absence fills the room
-- Capture the moment when you realize they're never coming back
-- Describe the phantom pain of reaching for someone who's no longer there
-- Use imagery of empty beds, silent phones, unopened letters, fading photographs
-- Address the cruelty of mundane moments - their coffee cup still in the sink
-- Express how heartbreak changes the color of the world, makes music sound different
-- Capture the desperate bargaining with time, the universe, with God
-- Show how love persists even after the person has gone, becoming a beautiful wound
-- Channel the raw honesty of late-night journal entries, tears on pillows, staring at ceilings
-
-Emotional Tone: Achingly beautiful, devastatingly honest, profoundly melancholic
-Style: Raw poetry of pain, elegant in its brokenness
-Voice: Someone writing love letters to ghosts, finding beauty in their own breaking`
+        systemPrompt += `
+ - Exquisite honesty about loss; the world recolored by absence.
+ - Imagery: unreturned messages, a cup left in the sink, the phone that won’t light up.`
         break
     }
 
-    // Special handling for inspirational tone
-    if (tone.toLowerCase().includes('inspirational')) {
+    // Optional category-specific override (editable via config/prompt-overrides.json)
+    if (overrideText && overrideText.trim().length > 0) {
       systemPrompt += `
 
-INSPIRATIONAL TONE OVERRIDE:
-Since you've been asked to create INSPIRATIONAL content, balance the category's emotional depth with uplifting, motivating elements:
-- Transform melancholy into wisdom that empowers
-- Show how pain becomes strength, how darkness leads to light
-- Focus on resilience, growth, and the human capacity to overcome
-- Maintain emotional authenticity while providing hope and encouragement
-- Create content that moves people to tears of recognition and then to action
-- Channel the inspiring aspects of struggle - the beauty of perseverance
-- Show how our deepest wounds can become our greatest sources of compassion
-
+CATEGORY OVERRIDE:
+${overrideText.trim()}
 `
     }
+ 
+    if (tone.toLowerCase().includes('inspirational')) {
+      systemPrompt += compact
+        ? `\nTONE (Inspirational): Earn uplift; transform pain into clarity and agency; avoid sermon.`
+        : `
+TONE OVERRIDE (Inspirational):
+- Balance depth with earned uplift; transform pain into lucid strength.
+- Prefer verbs of agency; show resilience without sermon or cliché.`
+    }
 
-    // Enhanced type-specific instructions
     systemPrompt += `
 
-TYPE-SPECIFIC REQUIREMENTS:
-`
+TYPE-SPECIFIC REQUIREMENTS:`
     switch (type) {
       case 'quote':
-        systemPrompt += `- Length: 1-3 sentences that pack maximum impact
-- Focus: One profound insight or observation
-- Language: Quotable, memorable, precise
-- Impact: Should make readers pause and reflect
-- Avoid: Generic motivational speak or obvious statements`
+        systemPrompt += compact
+          ? `\n- 1–3 sentences; one precise insight; no hashtags/emojis/self‑help tone.`
+          : `\n- 1–3 sentences; quotable and precise; one core insight.\n- No hashtags, emojis, or imperative self-help phrasing.`
         break
       case 'poem':
-        systemPrompt += `- Length: 4-16 lines (adjust for impact)
-- Structure: Use line breaks strategically for rhythm and meaning
-- Imagery: Include at least 2-3 vivid, specific images
-- Language: Rich but accessible, avoiding overly archaic or obscure terms
-- Emotion: Clear emotional arc or moment of insight`
+        systemPrompt += compact
+          ? `\n- 4–16 lines (use \\n); ≥2 concrete images; allow a subtle turn.`
+          : `\n- 4–16 lines; use \\n for line breaks.\n- At least 2–3 concrete images; allow a subtle turn or reveal.`
         break
       case 'reflection':
-        systemPrompt += `- Length: 2-5 sentences exploring one theme deeply
-- Approach: Contemplative analysis of a life observation
-- Style: Personal yet universal, like a journal entry that others relate to
-- Focus: How experiences shape understanding or reveal truth`
+        systemPrompt += compact
+          ? `\n- 2–5 sentences; contemplative; show thinking, not slogans.`
+          : `\n- 2–5 sentences; contemplative, universal yet intimate.\n- Show thinking on the page rather than conclusions alone.`
         break
     }
 
     systemPrompt += `
 
-RESPONSE FORMAT:
-Return only a valid JSON object with this exact structure:
+OUTPUT FORMAT (JSON ONLY):
 {
   "items": [
-    {
-      "content": "Your generated ${type} here (use \\n for line breaks in poems)",
-      "source": "Source if applicable, otherwise null"
-    }
+    { "content": "Generated ${type} text here (use \\n for poem line breaks)", "source": null }
   ]
 }
 
-IMPORTANT: Do NOT include author names in your response. The system will handle attribution.
-
-CRITICAL UNIQUENESS REQUIREMENTS:
-1. Generate COMPLETELY DIFFERENT content for each item - NO REPETITION WHATSOEVER
-2. Each piece must have DIFFERENT themes, metaphors, imagery, and emotional angles
-3. If generating 5 items, I want 5 ENTIRELY DIFFERENT pieces of content
-4. VERIFY each piece is unique before including it in your response
-
-FINAL CHECK: Before submitting, ensure NO TWO PIECES share similar:
-- Content or themes
-- Emotional tone or approach  
-- Metaphors or imagery
- - Style or structure
-
-QUALITY CHECK:
-Before finalizing each piece, ask:
-1. Does this offer genuine insight or just restate common wisdom?
-2. Would this belong in a curated literary collection?
-3. Does the language elevate the content rather than diminish it?
-4. Will readers be moved, challenged, or enlightened?
-
-Generate content that honors the literary tradition while feeling fresh and authentic.`
+FINAL SAFETY/QUALITY CHECK:
+- Remove stock phrases and repetition across items.
+- Ensure each item stands alone with distinct imagery and angle.
+- Keep language natural; avoid obvious AI tells.`
 
     return systemPrompt
   }

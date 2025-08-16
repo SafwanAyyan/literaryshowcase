@@ -4,6 +4,8 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { DatabaseService } from '@/lib/database-service'
 import type { ContentItem } from '@/types/literary'
 
+export const runtime = 'nodejs'
+
 // GET /api/content - Get all content
 export async function GET() {
   try {

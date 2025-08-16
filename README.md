@@ -33,7 +33,7 @@ npm run dev
 ## Database
 ```
 npx prisma generate
-npx prisma migrate dev
+npx prisma db push
 ```
 
 If you are deploying fresh to Vercel, Prisma migrations will be applied during the build via `prisma migrate deploy`.
