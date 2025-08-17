@@ -8,7 +8,7 @@
     "lint": "next lint",
     "start": "next start",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate --no-engine && prisma migrate deploy && next build",
+    "vercel-build": "node scripts/ensure-env.js && prisma generate --no-engine && prisma migrate deploy && next build",
     "setup": "node scripts/setup-env.js && npm run db:seed",
     "db:seed": "npx tsx scripts/seed-database.ts",
     "db:studio": "npx prisma studio",
