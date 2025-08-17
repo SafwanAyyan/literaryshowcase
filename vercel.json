@@ -1,5 +1,5 @@
 {
   "buildCommand": "npm run vercel-build",
-  "devCommand": "pnpm dev",
-  "installCommand": "pnpm install --frozen-lockfile"
+  "devCommand": "npm run dev",
+  "installCommand": "npm ci"
 }
