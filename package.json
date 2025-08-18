@@ -13,7 +13,10 @@
     "db:seed": "npx tsx scripts/seed-database.ts",
     "db:studio": "npx prisma studio",
     "db:migrate": "npx prisma migrate dev",
-    "db:reset": "npx prisma migrate reset && npm run db:seed"
+    "db:reset": "npx prisma migrate reset && npm run db:seed",
+    "clean": "rimraf .next .turbo node_modules/.cache",
+    "reinstall": "npm run clean && rimraf node_modules package-lock.json && npm install",
+    "doctor:build": "npm run clean && npm ci && npm run build"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
@@ -27,6 +30,8 @@
     "@radix-ui/react-separator": "latest",
     "@radix-ui/react-slot": "latest",
     "@radix-ui/react-toast": "latest",
+    "@radix-ui/react-accordion": "latest",
+    "@radix-ui/react-tooltip": "latest",
     "@types/bcryptjs": "^2.4.6",
     "@vercel/speed-insights": "^1.2.0",
     "autoprefixer": "^10.4.20",

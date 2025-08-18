@@ -1,6 +1,7 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { transitionClass } from "@/lib/theme-tokens"
 
 const Card = React.forwardRef<
   HTMLDivElement,
@@ -9,7 +10,11 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-lg border bg-card text-card-foreground shadow-sm",
+      // Elevation + micro-interactions (GPU-friendly)
+      "rounded-2xl border bg-card text-card-foreground shadow-sm",
+      transitionClass("opacity,transform,box-shadow", "micro"),
+      "will-change-transform will-change-opacity",
+      "hover:-translate-y-0.5 hover:shadow-lg focus-within:shadow-lg",
       className
     )}
     {...props}
@@ -37,6 +42,7 @@ const CardTitle = React.forwardRef<
     ref={ref}
     className={cn(
       "text-2xl font-semibold leading-none tracking-tight",
+      transitionClass("color", "micro"),
       className
     )}
     {...props}

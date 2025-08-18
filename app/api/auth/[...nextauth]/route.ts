@@ -4,10 +4,17 @@ import { PrismaAdapter } from '@auth/prisma-adapter'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { NextAuthOptions } from 'next-auth'
-
+import { getEnv, assertNodeRuntime } from '@/lib/env'
+ 
+// Ensure Node.js runtime (NextAuth + Prisma are not Edge-compatible)
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+assertNodeRuntime('app/api/auth/[...nextauth]')
+const env = getEnv()
+ 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // Only attach adapter when a DB is configured (prevents build-time issues on env-misconfig)
+  adapter: env.DATABASE_URL ? PrismaAdapter(prisma) : undefined,
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -19,35 +26,32 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) {
           return null
         }
-
+ 
         let user = await prisma.user.findUnique({
           where: { email: credentials.email }
         })
-
+ 
         // Bootstrap admin on first login attempt if env vars are set and user doesn't exist
-        if (!user && process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+        if (!user && env.ADMIN_EMAIL && env.ADMIN_PASSWORD) {
           const matchesAdminEnv = (
-            credentials.email === process.env.ADMIN_EMAIL &&
-            credentials.password === process.env.ADMIN_PASSWORD
+            credentials.email === env.ADMIN_EMAIL &&
+            credentials.password === env.ADMIN_PASSWORD
           )
           if (matchesAdminEnv) {
-            const hashed = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10)
+            const hashed = await bcrypt.hash(env.ADMIN_PASSWORD, 10)
             user = await prisma.user.create({
-              data: { email: process.env.ADMIN_EMAIL, password: hashed, role: 'admin', name: 'Admin' }
+              data: { email: env.ADMIN_EMAIL, password: hashed, role: 'admin', name: 'Admin' }
             })
           }
         }
-
+ 
         if (!user || !user.password) {
           return null
         }
-
+ 
         const isPasswordValid = await bcrypt.compare(credentials.password, user.password)
-
-        if (!isPasswordValid) {
-          return null
-        }
-
+        if (!isPasswordValid) return null
+ 
         return {
           id: user.id,
           email: user.email,
@@ -57,9 +61,8 @@ export const authOptions: NextAuthOptions = {
       }
     })
   ],
-  session: {
-    strategy: 'jwt'
-  },
+  session: { strategy: 'jwt' },
+  secret: env.NEXTAUTH_SECRET,
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -80,6 +83,6 @@ export const authOptions: NextAuthOptions = {
     error: '/admin/login'
   }
 }
-
+ 
 const handler = NextAuth(authOptions)
 export { handler as GET, handler as POST }

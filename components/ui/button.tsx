@@ -3,11 +3,19 @@ import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
-import { ThemeTokens, gradientTokenClasses } from "@/lib/theme-tokens"
+import { ThemeTokens, gradientTokenClasses, MotionTokens, transitionClass } from "@/lib/theme-tokens"
 
 const buttonVariants = cva(
-  // Standardized base: tokens-aligned radius, spacing handled by size variants
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/50 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  // Base: tokens-aligned radius, smooth micro-interactions (GPU-friendly)
+  [
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap",
+    "rounded-xl text-sm font-medium",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/50 focus-visible:ring-offset-2",
+    "disabled:pointer-events-none disabled:opacity-50",
+    "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+    transitionClass("opacity,transform,box-shadow,background-color,color", "micro"),
+    "will-change-transform will-change-opacity",
+  ].join(" "),
   {
     variants: {
       variant: {
@@ -26,10 +34,14 @@ const buttonVariants = cva(
           gradientTokenClasses(ThemeTokens.gradient.brand),
           ThemeTokens.shadow.brand,
           ThemeTokens.color.buttonText,
+          // Soft lift on hover, gentle press on active
+          "hover:-translate-y-0.5 active:translate-y-[1px]",
+          ThemeTokens.elevation?.hover ?? "",
         ].join(" "),
         subtle: [
           gradientTokenClasses(ThemeTokens.gradient.subtle),
           "text-white",
+          "hover:-translate-y-0.5 active:translate-y-[1px]",
         ].join(" "),
       },
       size: {
@@ -65,6 +77,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(buttonVariants({ variant, size, round, className }))}
         ref={ref}
         {...props}
+        // Respect reduced motion
+        data-reduced-motion={typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "true" : "false"}
       />
     )
   }

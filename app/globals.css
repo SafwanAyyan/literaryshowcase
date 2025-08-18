@@ -199,5 +199,6 @@ a:focus-visible {
 .shimmer {
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
   background-size: 200px 100%;
-  animation: shimmer 2s infinite;
+  will-change: background-position;
+  animation: shimmer 1.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
