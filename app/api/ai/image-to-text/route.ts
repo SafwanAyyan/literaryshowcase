@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 export const runtime = 'nodejs'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-config'
 import { OCRService } from '@/lib/ocr-service'
 
 // Rate limiting map to prevent abuse

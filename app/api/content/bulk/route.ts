@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 export const runtime = 'nodejs'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-config'
 import { DatabaseService } from '@/lib/database-service'
 import { CacheService } from '@/lib/cache-service'
 import { prisma } from '@/lib/prisma'

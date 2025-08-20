@@ -2,8 +2,6 @@ import type { Metadata } from 'next'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { NextAuthProvider } from '@/components/providers/session-provider'
-import dynamic from 'next/dynamic'
-const SpeedInsights = dynamic(() => import('@vercel/speed-insights/next').then(m => m.SpeedInsights), { ssr: false })
 import { RouteProgress } from '@/components/route-progress'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
@@ -40,7 +38,6 @@ html {
           {/* Screen-reader live region for loading/toast announcements */}
           <div id="sr-status" aria-live="polite" aria-atomic="true" className="sr-only" />
           {children}
-          {process.env.NODE_ENV === 'production' ? <SpeedInsights /> : null}
           {/* Accessible toast system (re-uses react-hot-toast already in project) */}
           <Toaster
             position="bottom-right"

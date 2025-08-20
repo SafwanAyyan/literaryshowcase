@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-config'
 import { DatabaseService } from '@/lib/database-service'
 import { GeminiService } from '@/lib/gemini-service'
 
@@ -67,7 +67,7 @@ function parsePlainText(input: string) {
     if (l.startsWith('#')) {
       const parsed = parseLineQuote(l)
       if (!parsed) continue
-      items.push({ ...parsed, ...current })
+      items.push({ ...parsed, author: parsed.author || 'Anonymous', ...current })
     }
   }
   return items

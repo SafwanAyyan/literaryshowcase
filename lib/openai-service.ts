@@ -229,7 +229,7 @@ export class OpenAIService {
     return generatedItems
   }
 
-  private static generateFallbackQuote(theme: string, tone: string, index: number): string {
+  private static generateFallbackQuote(theme: string | undefined, tone: string, index: number): string {
     const baseQuotes = [
       "The journey of discovery begins with a single question.",
       "In every ending, there lies the seed of a new beginning.",
@@ -257,7 +257,7 @@ export class OpenAIService {
     return variation + base.toLowerCase()
   }
 
-  private static generateFallbackPoem(theme: string, tone: string, index: number): string {
+  private static generateFallbackPoem(theme: string | undefined, tone: string, index: number): string {
     const poemTemplates = [
       "In quiet moments of the day,\nWhen thoughts have room to breathe and play,\nI find the truths that matter most\nAre simple gifts, not things to boast.",
       
@@ -273,7 +273,7 @@ export class OpenAIService {
     return poemTemplates[index % poemTemplates.length]
   }
 
-  private static generateFallbackReflection(theme: string, tone: string, index: number): string {
+  private static generateFallbackReflection(theme: string | undefined, tone: string, index: number): string {
     const reflections = [
       "There's something profound about the way life unfolds in unexpected directions. Each twist and turn teaches us that our greatest growth often comes not from the destinations we planned, but from the detours we never saw coming.",
       
