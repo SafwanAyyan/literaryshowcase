@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -18,12 +15,11 @@ model User {
   emailVerified DateTime?
   image         String?
   password      String?
-  role          String    @default("user") // "admin" or "user"
+  role          String    @default("user")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   accounts      Account[]
   sessions      Session[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model Account {
@@ -39,8 +35,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -62,25 +57,19 @@ model VerificationToken {
 }
 
 model ContentItem {
-  id       String  @id @default(cuid())
-  content  String
-  author   String
-  source   String?
-  category String // "found-made", "cinema", "literary-masters", "spiritual", "original-poetry", "heartbreak"
-  type     String // "quote", "poem", "reflection"
-
-  // Additional metadata
-  tags      String? // JSON array of tags
-  featured  Boolean @default(false)
-  published Boolean @default(true)
-
-  // Timestamps
+  id        String   @id @default(cuid())
+  content   String
+  author    String
+  source    String?
+  category  String
+  type      String
+  tags      String?
+  featured  Boolean  @default(false)
+  published Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // SEO and Analytics
-  views Int @default(0)
-  likes Int @default(0)
+  views     Int      @default(0)
+  likes     Int      @default(0)
 
   @@index([category])
   @@index([type])
@@ -92,33 +81,29 @@ model ContentItem {
 }
 
 model GenerationLog {
-  id         String  @id @default(cuid())
+  id         String   @id @default(cuid())
   prompt     String
-  parameters String // JSON object with generation parameters
+  parameters String
   itemsCount Int
   success    Boolean
   error      String?
-
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   @@index([createdAt])
 }
 
 model AdminSettings {
-  id          String  @id @default(cuid())
-  key         String  @unique
+  id          String   @id @default(cuid())
+  key         String   @unique
   value       String
   description String?
-
-  updatedAt DateTime @updatedAt
+  updatedAt   DateTime @updatedAt
 }
 
 model DailyMetric {
-  // YYYY-MM-DD as ID for easy upsert per day
-  date      String @id
-  visits    Int    @default(0)
-  pageviews Int    @default(0)
-
+  date      String   @id
+  visits    Int      @default(0)
+  pageviews Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -126,39 +111,32 @@ model DailyMetric {
 }
 
 model Submission {
-  id       String  @id @default(cuid())
-  content  String
-  author   String
-  source   String?
-  category String // "found-made", "cinema", "literary-masters", "spiritual", "original-poetry", "heartbreak"
-  type     String // "quote", "poem", "reflection"
-
-  // Submission metadata
+  id               String    @id @default(cuid())
+  content          String
+  author           String
+  source           String?
+  category         String
+  type             String
   submitterName    String?
   submitterEmail   String?
   submitterMessage String?
-  status           String  @default("pending") // "pending", "approved", "rejected"
+  status           String    @default("pending")
   adminNotes       String?
-
-  // Timestamps
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  reviewedAt DateTime?
-  reviewedBy String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  reviewedAt       DateTime?
+  reviewedBy       String?
 
   @@index([status])
   @@index([category])
   @@index([createdAt])
 }
 
-// --- Added for durable AI configuration and prompt versioning ---
-
 model AIProviderConfig {
   id        String   @id @default(cuid())
-  provider  String   // 'openai' | 'gemini' | 'deepseek' or any configured provider id
+  provider  String
   model     String
   isActive  Boolean  @default(true)
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -166,35 +144,31 @@ model AIProviderConfig {
 }
 
 model SystemPrompt {
-  id        String   @id @default(cuid())
-  useCase   String   // e.g., 'explain', 'analyze', 'generate', 'findSource', 'metaphor-analysis'
-  provider  String?  // optional: provider this prompt is optimized for
-  model     String?  // optional: model this prompt is optimized for
-  content   String   // base/system prompt content
-  version   Int      @default(1)
-  active    Boolean  @default(true)
-
+  id        String                @id @default(cuid())
+  useCase   String
+  provider  String?
+  model     String?
+  content   String
+  version   Int                   @default(1)
+  active    Boolean               @default(true)
   createdBy String?
   updatedBy String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
   versions  SystemPromptVersion[]
 
   @@index([useCase])
 }
 
 model SystemPromptVersion {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   promptId  String
   version   Int
   provider  String?
   model     String?
   content   String
   editor    String?
-  createdAt DateTime @default(now())
-
+  createdAt DateTime     @default(now())
   prompt    SystemPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
 
   @@index([promptId, version])
@@ -202,7 +176,7 @@ model SystemPromptVersion {
 
 model PromptAudit {
   id          String   @id @default(cuid())
-  action      String   // 'create' | 'update' | 'rollback' | 'activate' | 'deactivate'
+  action      String
   useCase     String
   editor      String?
   fromVersion Int?
