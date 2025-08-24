@@ -5,6 +5,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-14.2.16-black?logo=next.js&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-336791?logo=postgresql&logoColor=white)](https://postgresql.org)
+[![Prisma](https://img.shields.io/badge/Prisma-6.13.0-2D3748?logo=prisma&logoColor=white)](https://prisma.io)
 [![Vercel](https://img.shields.io/badge/Vercel-Deploy%20Ready-black?logo=vercel)](https://vercel.com)
 
 Built for authors, literary enthusiasts, and anyone who thinks AI analyzing Shakespeare is pretty cool. This isn't another "hello world" project—it's a full-stack platform that handles real-world problems like content management, AI integration, and the inevitable "can we OCR this image?" requests.
@@ -31,6 +32,7 @@ Built for authors, literary enthusiasts, and anyone who thinks AI analyzing Shak
 | **Admin Dashboard** | Full CRUD + bulk operations | Manage content without SQL queries |
 | **Real-time Analytics** | Pageviews, engagement metrics | Know what's actually being read |
 | **Maintenance Mode** | Global toggle with admin bypass | Deploy without user panic |
+| **Community Submissions** | User content with approval workflow | Grow your collection organically |
 
 ## 🛠 Tech Stack (The Reliable Stuff)
 
@@ -41,6 +43,7 @@ TypeScript 5.0+        // Because any is the enemy
 Tailwind CSS 3.4+      // Utility-first without the mess
 Framer Motion          // Animations that don't lag
 Radix UI               // Accessible by default
+Shadcn/ui              // Beautiful, consistent components
 
 // Backend: Node.js but make it scalable
 Prisma ORM 6.13.0      // Database queries that make sense
@@ -52,6 +55,11 @@ OpenAI GPT-4o          // For explanations and analysis
 Gemini 2.0 Flash       // Content generation and OCR fallback
 DeepSeek Chat v3       // Backup when others fail
 OCR.space API          // Primary OCR service
+
+// Performance & Monitoring
+CacheService           // Multi-level caching strategy
+RUM (Real User Metrics) // Know what users actually experience
+Vercel Analytics       // Production-ready analytics
 ```
 
 ## 🚦 Quick Start (Skip the Pain)
@@ -80,7 +88,10 @@ cp .env.example .env
 npx prisma generate
 npx prisma db push  # For dev; use migrate deploy for prod
 
-# 4. Start development
+# 4. Seed initial data (optional but recommended)
+npm run db:seed
+
+# 5. Start development
 npm run dev
 # Visit http://localhost:3000
 ```
@@ -104,17 +115,49 @@ DEEPSEEK_API_KEY="sk-..."    # Fallback provider
 
 # OCR - Optional but users will ask for it
 OCR_SPACE_API_KEY="helloworld"  # Free tier: 25k requests/month
+
+# ADMIN BOOTSTRAP - Create initial admin user
+ADMIN_EMAIL="your-email@example.com"
+ADMIN_PASSWORD="secure-password-here"
 ```
 
 ## 🏗 Architecture (How It All Fits)
 
 ### Design Decisions (Why We Did It This Way)
 
-- **Service Layer Pattern**: All business logic in `lib/` - easy to test and swap
+- **Service Layer Pattern**: All business logic in [`lib/`](lib/) - easy to test and swap
 - **Unified AI Interface**: One service, multiple providers - vendor independence
 - **Middleware-First**: Auth, analytics, maintenance handled at the edge
 - **Cache Everything**: Multi-level caching because database calls are expensive
 - **TypeScript Everywhere**: Runtime errors are production errors
+
+### Core Services Overview
+
+| Service | Purpose | Key Features |
+|---------|---------|-------------|
+| [`UnifiedAIService`](lib/unified-ai-service.ts) | Multi-provider AI integration | Smart fallbacks, per-use-case model selection |
+| [`DatabaseService`](lib/database-service.ts) | Database operations | Cached queries, bulk operations, statistics |
+| [`CacheService`](lib/cache-service.ts) | Performance optimization | Multi-level caching, automatic invalidation |
+| [`OCRService`](lib/ocr-service.ts) | Image-to-text conversion | Multiple providers, rate limiting, confidence scoring |
+
+### API Structure
+
+```
+app/api/
+├── ai/                    # AI endpoints
+│   ├── analyze/          # Literary analysis
+│   ├── generate/         # Content generation
+│   ├── image-to-text/    # OCR processing
+│   └── find-source/      # Source attribution
+├── content/              # Content management
+│   ├── public/          # Public content access
+│   └── [id]/            # Individual content operations
+├── admin/               # Admin endpoints (authenticated)
+│   ├── metrics/         # Performance monitoring
+│   ├── settings/        # System configuration
+│   └── stats/           # Dashboard statistics
+└── submissions/         # User submissions
+```
 
 ## 🚀 Deployment (Production-Ready Steps)
 
@@ -147,10 +190,12 @@ NEXTAUTH_URL=https://yourdomain   # Your actual domain
 | **Runtime Edge Errors** | Check `export const runtime = 'nodejs'` | Prisma needs Node.js runtime |
 | **Environment Variables Missing** | Double-check Vercel settings | Typos in variable names |
 | **Build Timeouts** | Use `npm ci` instead of `npm install` | Dependency resolution is slow |
+| **AI Rate Limiting** | Implement provider fallbacks | Free tiers have usage limits |
 
 ## 📡 API Reference (The Useful Endpoints)
 
 ### Public Endpoints
+
 ```typescript
 // Content discovery
 GET /api/content/public?category=literary-masters&author=Shakespeare&page=1
@@ -165,9 +210,14 @@ POST /api/ai/analyze
   "author": "Shakespeare",
   "source": "Hamlet"
 }
+
+// OCR processing
+POST /api/ai/image-to-text
+// FormData with image file
 ```
 
 ### Admin Endpoints (Authenticated)
+
 ```typescript
 // Content generation
 POST /api/ai/generate
@@ -178,14 +228,19 @@ POST /api/ai/generate
   "quantity": 5
 }
 
-// OCR processing
-POST /api/ai/image-to-text
-// FormData with image file
+// Bulk content operations
+POST /api/content/bulk
+// Array of content items
+
+// System settings
+GET/POST /api/admin/settings
+// Application configuration
 ```
 
 ## 🔍 Development Tips (Hard-Learned Lessons)
 
 ### Performance Optimization
+
 ```typescript
 // Use the cache service - it's your friend
 import { CacheService } from '@/lib/cache-service'
@@ -196,6 +251,7 @@ const result = await CacheService.getOrSet('expensive-operation', async () => {
 ```
 
 ### AI Provider Best Practices
+
 ```typescript
 // Always handle provider failures
 try {
@@ -204,6 +260,22 @@ try {
   // Fallback to cached results or graceful degradation
   console.error('AI analysis failed:', error)
 }
+```
+
+### Database Optimization
+
+```typescript
+// Use Prisma's built-in optimizations
+const items = await prisma.contentItem.findMany({
+  where: { published: true },
+  take: 50,
+  orderBy: { createdAt: 'desc' },
+  select: { // Only select needed fields
+    id: true,
+    content: true,
+    author: true
+  }
+})
 ```
 
 ## 🐛 Troubleshooting (When Things Break)
@@ -234,6 +306,11 @@ curl -H "Authorization: Bearer $OPENAI_API_KEY" https://api.openai.com/v1/models
 - Verify all environment variables
 - Try local build: `npm run build`
 
+**"OCR Not Working"**
+- Verify OCR.space API key
+- Check image size limits (5MB for OCR.space, 10MB for Gemini)
+- Enable Gemini fallback in admin settings
+
 ## 🤝 Contributing (Make It Better)
 
 This project follows "real-world" contribution guidelines:
@@ -261,6 +338,8 @@ This project follows "real-world" contribution guidelines:
 - [ ] Performance monitoring dashboard
 - [ ] Mobile app companion
 - [ ] Elasticsearch integration for better search
+- [ ] Internationalization support
+- [ ] Advanced content recommendation engine
 
 ## 📞 Support & Community
 
@@ -277,22 +356,30 @@ This project follows "real-world" contribution guidelines:
 
 **Built with ❤️ and lots of coffee** ☕
 
-*P.S. - If you use this in production and it saves you time, consider starring the repo. It helps more than you think.*js Team**: For the excellent React framework
+*P.S. - If you use this in production and it saves you time, consider starring the repo. It helps more than you think.*
+
+## 🙏 Acknowledgments
+
+- **Next.js Team**: For the excellent React framework
 - **Vercel**: For seamless deployment platform
 - **Prisma**: For the modern database toolkit
 - **OpenAI, Google, DeepSeek**: For AI provider APIs
 - **Radix UI**: For accessible component primitives
 - **Tailwind CSS**: For utility-first styling
+- **Shadcn/ui**: For beautiful component library
 
-## 📞 Support
+## 📚 Additional Resources
 
-For support, questions, or feature requests:
-
-- 📧 **Email**: [Contact Information]
-- 💬 **Discord**: [Community Link]
-- 📝 **Issues**: [GitHub Issues](issues)
-- 📖 **Documentation**: [Project Wiki](wiki)
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+- [OpenAI API Documentation](https://platform.openai.com/docs)
+- [Google Gemini API Documentation](https://ai.google.dev/)
 
 ---
 
-**Built with ❤️ for the literary community**
+**Version**: 2.1.0  
+**Last Updated**: August 2024  
+**License**: MIT
+
+*Happy coding! May your builds be fast and your errors be few.* 🚀
