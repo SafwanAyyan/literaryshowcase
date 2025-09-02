@@ -69,6 +69,8 @@ When discussing your works, focus on the psychological depth, moral questions, a
   }
 } as const
 
+export const runtime = 'nodejs'
+
 export async function POST(request: NextRequest) {
   try {
     const body: AuthorChatRequest = await request.json()
@@ -94,7 +96,7 @@ export async function POST(request: NextRequest) {
     // Rate limiting check
     const clientIP = request.headers.get('x-forwarded-for') || 'unknown'
     const rateLimitKey = `author-chat:${clientIP}:${authorId}`
-    const recentRequests = await CacheService.get(rateLimitKey) || 0
+    const recentRequests = CacheService.get<number>(rateLimitKey) ?? 0
     
     if (recentRequests >= 10) { // 10 requests per minute
       return NextResponse.json({
@@ -104,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update rate limit counter
-    await CacheService.set(rateLimitKey, recentRequests + 1, 60) // 1 minute TTL
+    CacheService.set(rateLimitKey, recentRequests + 1, 60_000) // 1 minute TTL
 
     // Create cache key for response caching
     const conversationContext = conversationHistory.slice(-6) // Last 6 messages for context
@@ -113,7 +115,7 @@ export async function POST(request: NextRequest) {
     ).toString('base64').slice(0, 32)}`
 
     // Check cache first
-    const cachedResponse = await CacheService.get(cacheKey)
+    const cachedResponse = CacheService.get<string>(cacheKey)
     if (cachedResponse) {
       return NextResponse.json({
         success: true,
@@ -150,7 +152,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Cache the response
-    await CacheService.set(cacheKey, responseText, CacheService.TTL.MEDIUM)
+    CacheService.set(cacheKey, responseText, CacheService.TTL.SHORT)
 
     // Log the conversation for admin monitoring
     console.log(`Author chat - ${persona.name}: User asked "${message.slice(0, 50)}..." - Responded: "${responseText.slice(0, 50)}..."`)
