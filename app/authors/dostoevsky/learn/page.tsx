@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BookOpen, Home, Film } from 'lucide-react'
+import { BookOpen, Home, Film, MessageCircle } from 'lucide-react'
+import { AuthorChatDialog } from '@/components/author-chat-dialog'
 
 type Data = { bio: string; summary: string; themes: string; video: boolean }
 
@@ -30,10 +31,23 @@ export default function DostoevskyLearn() {
                 <p className="text-gray-300 text-sm">Overview and Crime and Punishment</p>
               </div>
             </div>
-            <Link href="/" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-gray-100 border border-white/10 transition-colors">
-              <Home className="w-4 h-4" />
-              <span>Back to Home</span>
-            </Link>
+            <div className="flex items-center gap-3">
+              <AuthorChatDialog
+                authorId="dostoevsky"
+                authorName="Fyodor Dostoevsky"
+                authorAvatar="/assets/authors/dostoevsky/dostoevsky.jpg"
+                trigger={
+                  <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border border-purple-500/30 transition-all duration-200 shadow-lg hover:shadow-purple-500/25">
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Chat with Dostoevsky</span>
+                  </button>
+                }
+              />
+              <Link href="/" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-gray-100 border border-white/10 transition-colors">
+                <Home className="w-4 h-4" />
+                <span>Back to Home</span>
+              </Link>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2 mb-4">
@@ -199,5 +213,3 @@ function renderThemes(raw: string) {
     </div>
   )
 }
-
-

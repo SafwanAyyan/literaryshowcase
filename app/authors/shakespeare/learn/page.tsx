@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BookOpen, ChevronRight, Home } from 'lucide-react'
+import { BookOpen, ChevronRight, Home, MessageCircle } from 'lucide-react'
+import { AuthorChatDialog } from '@/components/author-chat-dialog'
 
 type Data = { devices: string; notes: string; audio: boolean; video: boolean }
 
@@ -32,10 +33,23 @@ export default function ShakespeareLearn() {
                 <p className="text-gray-300 text-sm">Brief overview, audio intro, and works</p>
               </div>
             </div>
-            <Link href="/" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-gray-100 border border-white/10 transition-colors">
-              <Home className="w-4 h-4" />
-              <span>Back to Home</span>
-            </Link>
+            <div className="flex items-center gap-3">
+              <AuthorChatDialog
+                authorId="shakespeare"
+                authorName="William Shakespeare"
+                authorAvatar="/assets/authors/shakespeare/shakespeare.jpg"
+                trigger={
+                  <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border border-purple-500/30 transition-all duration-200 shadow-lg hover:shadow-purple-500/25">
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Chat with Shakespeare</span>
+                  </button>
+                }
+              />
+              <Link href="/" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-gray-100 border border-white/10 transition-colors">
+                <Home className="w-4 h-4" />
+                <span>Back to Home</span>
+              </Link>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2 mb-4">
@@ -222,5 +236,3 @@ function renderScenes(raw: string) {
     </div>
   )
 }
-
-

@@ -1249,4 +1249,89 @@ FINAL SAFETY/QUALITY CHECK:
     return generatedItems
   }
 
+  /**
+   * Lightweight chat helper for author/persona conversations (Gemini-first).
+   * Does not force JSON output; returns plain text.
+   */
+  static async chatAuthor(
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+    options?: { model?: string; temperature?: number; maxTokens?: number; forcedProvider?: AIProvider }
+  ): Promise<{ success: boolean; content?: string; error?: string; provider: AIProvider }> {
+    try {
+      const forced: AIProvider = options?.forcedProvider || 'gemini'
+      const { provider, config } = await this.getCurrentProvider(forced)
+
+      if (provider === 'gemini') {
+        if (!config.apiKey) return { success: false, error: 'Gemini API key missing', provider }
+
+        const client = this.getGeminiClient(config.apiKey)
+        const modelId = options?.model || config.model
+        const model = client.getGenerativeModel({ model: modelId })
+
+        // Separate system prompt from the rest of the conversation
+        const system = messages.find(m => m.role === 'system')?.content?.trim() ||
+          'You are a renowned literary figure. Answer faithfully, clearly, and avoid fabrications.'
+        const history = messages.filter(m => m.role !== 'system')
+
+        // Build a compact transcript for the model
+        const transcript = history
+          .map(m => `${m.role === 'user' ? 'User' : 'Author'}: ${m.content}`)
+          .join('\n')
+
+        const prompt = [
+          system,
+          'Conversation:',
+          transcript,
+          'Answer in a natural, conversational tone consistent with the persona.'
+        ].join('\n\n')
+
+        // Note: generationConfig is optional; defaults are used for speed/stability
+        const result: any = await model.generateContent(prompt)
+        const text = typeof result?.response?.text === 'function' ? result.response.text() : ''
+        const content = (text || '').toString().trim()
+        if (!content) return { success: false, error: 'Empty response', provider }
+        return { success: true, content, provider }
+      }
+
+      if (provider === 'openai') {
+        if (!config.apiKey) return { success: false, error: 'OpenAI API key missing', provider }
+        const client = this.getOpenAIClient(config.apiKey)
+        const completion = await client.chat.completions.create({
+          model: options?.model || config.model,
+          messages: messages.map(m => ({ role: m.role as any, content: m.content })),
+          temperature: options?.temperature ?? 0.8,
+          max_tokens: options?.maxTokens ?? 500
+        })
+        const content = completion.choices?.[0]?.message?.content?.trim() || ''
+        if (!content) return { success: false, error: 'Empty response', provider }
+        return { success: true, content, provider }
+      }
+
+      // deepseek via OpenRouter
+      if (!config.apiKey) return { success: false, error: 'DeepSeek API key missing', provider }
+      const payload = {
+        model: `deepseek/${options?.model || config.model}`,
+        messages: messages.map(m => ({ role: m.role, content: m.content })),
+        temperature: options?.temperature ?? 0.8,
+        max_tokens: options?.maxTokens ?? 500
+      }
+      const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.apiKey}`,
+          'HTTP-Referer': 'https://literaryshowcase.com',
+          'X-Title': 'Literary Showcase',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      if (!resp.ok) return { success: false, error: `DeepSeek error ${resp.status}`, provider }
+      const data = await resp.json().catch(() => null)
+      const content = data?.choices?.[0]?.message?.content?.trim() || ''
+      if (!content) return { success: false, error: 'Empty response', provider }
+      return { success: true, content, provider }
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Chat error', provider: options?.forcedProvider || 'gemini' }
+    }
+  }
 }

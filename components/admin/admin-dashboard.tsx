@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { signOut } from "next-auth/react"
-import { PlusCircle, FileText, Bot, BarChart3, Database, Settings, LogOut, Home, AlertTriangle, Save, Image, Eye, Activity, Users } from "lucide-react"
+import { PlusCircle, FileText, Bot, BarChart3, Database, Settings, LogOut, Home, AlertTriangle, Save, Image, Eye, Activity, Users, MessageCircle } from "lucide-react"
 import toast from "react-hot-toast"
 import { FloatingParticles } from "@/components/floating-particles"
 import { InteractiveBackground } from "@/components/interactive-background"
@@ -12,6 +12,7 @@ import { AIContentGenerator } from "./ai-content-generator"
 import { DashboardStats } from "./dashboard-stats"
 import { DataManager } from "./data-manager"
 import { AIProvidersSettings } from "./ai-providers-settings"
+import { AuthorChatSettings } from "./author-chat-settings"
 import { ImageToText } from "./image-to-text"
 import { SubmissionsPanel } from "./submissions-panel"
 import { OCRSettings } from "./ocr-settings"
@@ -175,7 +176,7 @@ function AdminSettings() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'general' | 'ai' | 'prompts' | 'ocr' | 'performance' | 'maintenance'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'ai' | 'prompts' | 'authorChat' | 'ocr' | 'performance' | 'maintenance'>('general')
   const [testingProvider, setTestingProvider] = useState<string | null>(null)
 
   useEffect(() => {
@@ -290,6 +291,7 @@ function AdminSettings() {
     { id: 'general', label: 'General', icon: Settings },
     { id: 'ai', label: 'AI Providers', icon: Bot },
     { id: 'prompts', label: 'Prompts', icon: FileText },
+    { id: 'authorChat', label: 'Author Chat', icon: MessageCircle },
     { id: 'ocr', label: 'OCR Settings', icon: Eye },
     { id: 'performance', label: 'Performance', icon: Activity },
     { id: 'maintenance', label: 'Maintenance', icon: AlertTriangle }
@@ -358,6 +360,13 @@ function AdminSettings() {
               <CategoryPromptOverrides />
             </div>
           </div>
+        )}
+
+        {activeTab === 'authorChat' && (
+          <AuthorChatSettings
+            settings={settings}
+            onSettingChange={handleSettingChange}
+          />
         )}
 
         {activeTab === 'ocr' && (
