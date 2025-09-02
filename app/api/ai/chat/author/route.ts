@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     // Rate limiting check
     const clientIP = request.headers.get('x-forwarded-for') || 'unknown'
     const rateLimitKey = `author-chat:${clientIP}:${authorId}`
-    const recentRequests = CacheService.get<number>(rateLimitKey) ?? 0
+    const recentRequests = (await CacheService.get<number>(rateLimitKey)) || 0
     
     if (recentRequests >= 10) { // 10 requests per minute
       return NextResponse.json({
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     ).toString('base64').slice(0, 32)}`
 
     // Check cache first
-    const cachedResponse = CacheService.get<string>(cacheKey)
+    const cachedResponse = await CacheService.get<string>(cacheKey)
     if (cachedResponse) {
       return NextResponse.json({
         success: true,
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
 
     // Build conversation for AI
     const systemPrompt = persona.prompt
-    const messages = [
+    const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
       { role: 'system', content: systemPrompt },
       ...conversationContext,
       { role: 'user', content: message }
