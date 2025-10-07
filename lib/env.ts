@@ -13,8 +13,9 @@ const EnvSchema = z.object({
   NEXTAUTH_URL: z.string().url().optional(),
   NEXTAUTH_SECRET: z.string().min(16).optional(),
 
-  // Database
-  POSTGRES_URL: z.string().min(1, "POSTGRES_URL is required").optional(),
+  // Database (support both DATABASE_URL standard and POSTGRES_URL legacy)
+  DATABASE_URL: z.string().min(1).optional(),
+  POSTGRES_URL: z.string().min(1).optional(),
   DIRECT_URL: z.string().optional(),
 
   // Optional admin bootstrap for CredentialsProvider
@@ -32,6 +33,7 @@ export function getEnv(): Env {
     NODE_ENV: process.env.NODE_ENV,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+    DATABASE_URL: process.env.DATABASE_URL,
     POSTGRES_URL: process.env.POSTGRES_URL,
     DIRECT_URL: process.env.DIRECT_URL,
     ADMIN_EMAIL: process.env.ADMIN_EMAIL,

@@ -4,7 +4,9 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("POSTGRES_URL")
+  // Use DATABASE_URL as the standard (Vercel/Prisma convention)
+  // Falls back to POSTGRES_URL in lib/prisma.ts runtime config
+  url      = env("DATABASE_URL")
 }
 
 model User {

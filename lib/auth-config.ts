@@ -16,7 +16,7 @@ type WithRole = { role?: string }
 
 export const authOptions: NextAuthOptions = {
   // Attach adapter only when a DB is configured to avoid build-time issues on env-misconfig
-  adapter: env.DATABASE_URL ? PrismaAdapter(prisma) : undefined,
+  adapter: (env.DATABASE_URL || env.POSTGRES_URL) ? PrismaAdapter(prisma) : undefined,
   providers: [
     CredentialsProvider({
       name: "credentials",
