@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String    @default("user")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model ContentItem {
+  id        String   @id @default(cuid())
+  content   String
+  author    String
+  source    String?
+  category  String
+  type      String
+  tags      String?
+  featured  Boolean  @default(false)
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  views     Int      @default(0)
+  likes     Int      @default(0)
+
+  @@index([category])
+  @@index([type])
+  @@index([published])
+  @@index([createdAt])
+  @@index([author])
+  @@index([likes])
+  @@index([views])
+}
+
+model GenerationLog {
+  id         String   @id @default(cuid())
+  prompt     String
+  parameters String
+  itemsCount Int
+  success    Boolean
+  error      String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model AdminSettings {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model DailyMetric {
+  date      String   @id
+  visits    Int      @default(0)
+  pageviews Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+model Submission {
+  id               String    @id @default(cuid())
+  content          String
+  author           String
+  source           String?
+  category         String
+  type             String
+  submitterName    String?
+  submitterEmail   String?
+  submitterMessage String?
+  status           String    @default("pending")
+  adminNotes       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  reviewedAt       DateTime?
+  reviewedBy       String?
+
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model AIProviderConfig {
+  id        String   @id @default(cuid())
+  provider  String
+  model     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([provider, isActive])
+}
+
+model SystemPrompt {
+  id        String                @id @default(cuid())
+  useCase   String
+  provider  String?
+  model     String?
+  content   String
+  version   Int                   @default(1)
+  active    Boolean               @default(true)
+  createdBy String?
+  updatedBy String?
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+  versions  SystemPromptVersion[]
+
+  @@index([useCase])
+}
+
+model SystemPromptVersion {
+  id        String       @id @default(cuid())
+  promptId  String
+  version   Int
+  provider  String?
+  model     String?
+  content   String
+  editor    String?
+  createdAt DateTime     @default(now())
+  prompt    SystemPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@index([promptId, version])
+}
+
+model PromptAudit {
+  id          String   @id @default(cuid())
+  action      String
+  useCase     String
+  editor      String?
+  fromVersion Int?
+  toVersion   Int?
+  createdAt   DateTime @default(now())
+
+  @@index([useCase, createdAt])
+}
