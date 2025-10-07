@@ -56,19 +56,20 @@ model VerificationToken {
 }
 
 model ContentItem {
-  id        String   @id @default(cuid())
-  content   String
-  author    String
-  source    String?
-  category  String
-  type      String
-  tags      String?
-  featured  Boolean  @default(false)
-  published Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  views     Int      @default(0)
-  likes     Int      @default(0)
+  id              String           @id @default(cuid())
+  content         String
+  author          String
+  source          String?
+  category        String
+  type            String
+  tags            String?
+  featured        Boolean          @default(false)
+  published       Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  views           Int              @default(0)
+  likes           Int              @default(0)
+  collectionItems CollectionItem[]
 
   @@index([category])
   @@index([type])
@@ -183,4 +184,31 @@ model PromptAudit {
   createdAt   DateTime @default(now())
 
   @@index([useCase, createdAt])
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  deviceId    String   // Anonymous device identifier
+  isPublic    Boolean  @default(false)
+  shareSlug   String?  @unique // For public sharing
+  items       CollectionItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([deviceId])
+  @@index([shareSlug])
+}
+
+model CollectionItem {
+  id           String      @id @default(cuid())
+  collectionId String
+  contentId    String
+  addedAt      DateTime    @default(now())
+  collection   Collection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  content      ContentItem @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, contentId])
+  @@index([collectionId])
 }

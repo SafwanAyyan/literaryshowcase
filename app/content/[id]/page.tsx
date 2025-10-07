@@ -2,8 +2,9 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { PoemDisplay } from '@/components/poem-display'
-import { ArrowLeft, Heart, Eye } from 'lucide-react'
+import { ArrowLeft, Heart, Eye, GitCompare } from 'lucide-react'
 import { ContentDetailClient } from '@/components/content-detail-client'
+import { AddToCollectionButton } from '@/components/add-to-collection-button'
 
 async function getContentItem(id: string) {
   const item = await prisma.contentItem.findUnique({ where: { id } })
@@ -46,9 +47,19 @@ export default async function ContentDetail({ params }: { params: { id: string }
             <blockquote className="text-gray-100 leading-relaxed font-medium text-lg whitespace-pre-line">{item.content}</blockquote>
           )}
 
-          <div className="mt-6 flex items-center gap-3">
+          <div className="mt-6 flex items-center justify-between">
             <div className="text-gray-300">— {item.author}</div>
-            <ContentDetailClient id={item.id} content={item.content} author={item.author} category={item.category} source={item.source || undefined} type={item.type} variant="like-only" />
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/compare?item1=${item.id}`}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-gray-200 transition-colors border border-white/10"
+              >
+                <GitCompare className="w-4 h-4" />
+                <span>Compare</span>
+              </Link>
+              <AddToCollectionButton contentId={item.id} />
+              <ContentDetailClient id={item.id} content={item.content} author={item.author} category={item.category} source={item.source || undefined} type={item.type} variant="like-only" />
+            </div>
           </div>
           </div>
         </div>

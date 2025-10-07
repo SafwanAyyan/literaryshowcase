@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { signOut } from "next-auth/react"
-import { PlusCircle, FileText, Bot, BarChart3, Database, Settings, LogOut, Home, AlertTriangle, Save, Image, Eye, Activity, Users, MessageCircle } from "lucide-react"
+import { PlusCircle, FileText, Bot, BarChart3, Database, Settings, LogOut, Home, AlertTriangle, Save, Image, Eye, Activity, Users, MessageCircle, Copy, CheckSquare } from "lucide-react"
 import toast from "react-hot-toast"
 import { FloatingParticles } from "@/components/floating-particles"
 import { InteractiveBackground } from "@/components/interactive-background"
@@ -18,12 +18,14 @@ import { SubmissionsPanel } from "./submissions-panel"
 import { OCRSettings } from "./ocr-settings"
 import { PerformanceMonitor } from "./performance-monitor"
 import { ContentImporter } from "./content-importer"
+import { DuplicateFinder } from "./duplicate-finder"
+import { BulkOperations } from "./bulk-operations"
 import Link from "next/link"
 import { PromptManager } from "./prompt-manager"
 import { CategoryPromptOverrides } from "./category-prompt-overrides"
 import { Button } from "@/components/ui/button"
 
-type AdminView = "dashboard" | "content" | "ai-generator" | "data-manager" | "image-to-text" | "settings" | "submissions" | "import"
+type AdminView = "dashboard" | "content" | "ai-generator" | "data-manager" | "image-to-text" | "settings" | "submissions" | "import" | "duplicates" | "bulk"
 
 export function AdminDashboard() {
   const [currentView, setCurrentView] = useState<AdminView>("dashboard")
@@ -31,6 +33,8 @@ export function AdminDashboard() {
   const navigationItems = [
     { id: "dashboard", label: "Dashboard", icon: BarChart3 },
     { id: "content", label: "Manage Content", icon: FileText },
+    { id: "bulk", label: "Bulk Operations", icon: CheckSquare },
+    { id: "duplicates", label: "Find Duplicates", icon: Copy },
     { id: "import", label: "Bulk Import", icon: Database },
     { id: "ai-generator", label: "AI Generator", icon: Bot },
     { id: "data-manager", label: "Data Manager", icon: Database },
@@ -43,6 +47,10 @@ export function AdminDashboard() {
     switch (currentView) {
       case "content":
         return <ContentManager />
+      case "bulk":
+        return <BulkOperations />
+      case "duplicates":
+        return <DuplicateFinder />
       case "ai-generator":
         return <AIContentGenerator />
       case "data-manager":

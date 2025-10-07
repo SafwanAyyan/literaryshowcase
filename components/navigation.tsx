@@ -1,10 +1,18 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Library, Send } from "lucide-react"
+import { Library, Send, Bookmark } from "lucide-react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 export function Navigation() {
+  const pathname = usePathname()
+  
+  // Hide navigation on certain pages for cleaner UX
+  const hideNav = pathname === '/submit' || pathname?.startsWith('/admin')
+  
+  if (hideNav) return null
+  
   return (
     <motion.nav
       initial={{ opacity: 0, y: -20 }}
@@ -26,14 +34,21 @@ export function Navigation() {
             </div>
           </Link>
           
-          <div className="flex items-center space-x-4">
-            <Link href="/guides" className="text-gray-300 hover:text-white">Guides</Link>
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <Link href="/guides" className="text-gray-300 hover:text-white hidden sm:inline">Guides</Link>
+            <Link
+              href="/profile"
+              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-xl transition-colors shadow-lg"
+            >
+              <Bookmark className="w-4 h-4" />
+              <span>My Collections</span>
+            </Link>
             <Link
               href="/submit"
               className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-[#1e1e1f] to-[#2a0a37] hover:from-[#252526] hover:to-[#3a0f4d] text-white rounded-xl transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_20px_rgba(0,0,0,0.35)]"
             >
               <Send className="w-4 h-4" />
-              <span className="hidden sm:inline">Submit Content</span>
+              <span className="hidden sm:inline">Submit</span>
             </Link>
           </div>
         </div>

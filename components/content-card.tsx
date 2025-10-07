@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Quote, User, Calendar, ChevronDown, ChevronUp, Copy, Check } from "lucide-react"
 import type { ContentItem } from "@/types/literary"
 import Link from "next/link"
+import { AddToCollectionButton } from "./add-to-collection-button"
 
 interface ContentCardProps {
   item: ContentItem
@@ -39,20 +40,23 @@ export function ContentCard({ item }: ContentCardProps) {
             </span>
           </div>
         </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            navigator.clipboard.writeText(item.content).then(() => {
-              setCopied(true)
-              setTimeout(() => setCopied(false), 1500)
-            }).catch(()=>{})
-          }}
-          aria-label="Copy quote"
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/10 hover:bg-white/15 text-gray-200 text-xs border border-white/10 transition-colors shrink-0"
-        >
-          {copied ? <Check className="w-3.5 h-3.5 text-green-300" /> : <Copy className="w-3.5 h-3.5" />}
-          <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy'}</span>
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <AddToCollectionButton contentId={item.id} compact />
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              navigator.clipboard.writeText(item.content).then(() => {
+                setCopied(true)
+                setTimeout(() => setCopied(false), 1500)
+              }).catch(()=>{})
+            }}
+            aria-label="Copy quote"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/10 hover:bg-white/15 text-gray-200 text-xs border border-white/10 transition-colors"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-green-300" /> : <Copy className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy'}</span>
+          </button>
+        </div>
       </div>
 
       <AnimatePresence mode="wait">

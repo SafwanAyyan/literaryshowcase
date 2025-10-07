@@ -256,8 +256,19 @@ export function ContentDetailClient({ id, content, author, category, source, typ
                 {loading ? 'Thinking…' : 'Ask'}
               </GradientButton>
               {answer && (
-                <div className="rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-transparent p-4 text-purple-100 whitespace-pre-wrap">
-                  {answer}
+                <div className="rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-transparent p-4">
+                  <div className="prose prose-invert prose-sm max-w-none">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({...props}) => <p className="text-purple-100 leading-relaxed mb-3" {...props} />,
+                        strong: ({...props}) => <strong className="text-white font-semibold" {...props} />,
+                        em: ({...props}) => <em className="text-purple-200 italic" {...props} />,
+                      }}
+                    >
+                      {answer}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               )}
             </div>

@@ -18,7 +18,7 @@ export async function GET(
         { status: 404 }
       )
     }
-    return NextResponse.json({ success: true, data: content })
+    return NextResponse.json({ success: true, item: content, data: content })
   } catch (error) {
     console.error('Error fetching content:', error)
     return NextResponse.json(

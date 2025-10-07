@@ -4,14 +4,14 @@ import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { BookOpen, Send, Shuffle } from "lucide-react"
 import Link from "next/link"
-// import { literaryData } from "@/lib/data" // Now using database instead
 // import { CategoryFilter } from "@/components/category-filter"
 import { CollectionControls } from "@/components/collection-controls"
 import { ContentCard } from "@/components/content-card"
 import { EnhancedHeroSection } from "@/components/enhanced-hero-section"
 import { LoadingSpinner } from "@/components/enhanced-loading-spinner"
-import { FloatingParticles } from "@/components/floating-particles"
-import { InteractiveBackground } from "@/components/interactive-background"
+import { FloatingParticles } from '@/components/floating-particles'
+import { InteractiveBackground } from '@/components/interactive-background'
+import { FloatingCollectionsBadge } from '@/components/floating-collections-badge'
 import { ContentRefresh } from "@/lib/content-refresh"
 import type { ContentItem, Category, OrderByOption } from "@/types/literary"
 
@@ -95,9 +95,7 @@ export default function Home() {
           animate={{ opacity: 1, scale: 1 }}
           className="glass-card p-8 text-center"
         >
-          <div className="inline-block mb-4">
-            <BookOpen className="w-12 h-12 text-purple-400" />
-          </div>
+          <BookOpen className="w-12 h-12 text-purple-400 mx-auto mb-4" />
           <p className="text-white text-lg font-medium">Loading literary collection...</p>
         </motion.div>
       </div>
@@ -108,7 +106,7 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative">
       {/* Enhanced Background Elements */}
       <InteractiveBackground />
-      <FloatingParticles />
+      <FloatingCollectionsBadge />
 
       <main className="relative z-10">
         <EnhancedHeroSection />
@@ -294,6 +292,7 @@ export default function Home() {
           <div className="absolute inset-0 rounded-full bg-purple-400 animate-ping opacity-20" />
         </motion.div>
       </Link>
+
     </div>
   )
 }
