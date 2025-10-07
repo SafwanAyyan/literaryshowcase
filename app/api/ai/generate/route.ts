@@ -47,7 +47,9 @@ export async function POST(request: NextRequest) {
     try {
       // Respect explicit provider selection from UI; support "both" aggregation
       let generated: any[] = []
+      let promptUsed = ''
       const seen = new Set<string>()
+      const providers: Array<{ provider: string; model: string }> = []
 
       const pushUnique = (items: any[]) => {
         for (const it of items) {
@@ -59,18 +61,23 @@ export async function POST(request: NextRequest) {
       }
 
       if (provider === 'both') {
-        const [openaiItems, geminiItems] = await Promise.all([
+        const [openaiResult, geminiResult] = await Promise.all([
           UnifiedAIService.generateContent(generationParams, { provider: 'openai' as AIProvider }),
           UnifiedAIService.generateContent(generationParams, { provider: 'gemini' as AIProvider })
         ])
-        pushUnique(openaiItems)
-        pushUnique(geminiItems)
+        promptUsed = openaiResult.prompt || geminiResult.prompt
+        providers.push({ provider: openaiResult.provider, model: openaiResult.model })
+        providers.push({ provider: geminiResult.provider, model: geminiResult.model })
+        pushUnique(openaiResult.items)
+        pushUnique(geminiResult.items)
 
         // If still short, attempt DeepSeek when configured
         if (generated.length < generationParams.quantity) {
           try {
-            const deepseekItems = await UnifiedAIService.generateContent(generationParams, { provider: 'deepseek' as AIProvider })
-            pushUnique(deepseekItems)
+            const deepseekResult = await UnifiedAIService.generateContent(generationParams, { provider: 'deepseek' as AIProvider })
+            providers.push({ provider: deepseekResult.provider, model: deepseekResult.model })
+            if (!promptUsed) promptUsed = deepseekResult.prompt
+            pushUnique(deepseekResult.items)
           } catch {
             // ignore tertiary failure
           }
@@ -79,20 +86,24 @@ export async function POST(request: NextRequest) {
         generated = generated.slice(0, generationParams.quantity)
       } else {
         const selected = provider as AIProvider | undefined
-        generated = await UnifiedAIService.generateContent(generationParams, selected ? { provider: selected } : undefined)
+        const result = await UnifiedAIService.generateContent(generationParams, selected ? { provider: selected } : undefined)
+        generated = result.items
+        promptUsed = result.prompt
+        providers.push({ provider: result.provider, model: result.model })
       }
 
       // Log the generation attempt
       await DatabaseService.logGeneration({
-        prompt: `Generate ${quantity} ${type}s in ${tone} tone about ${theme || 'general'} for ${category}`,
-        parameters: { ...generationParams, provider: provider || 'auto' },
+        prompt: promptUsed || `Generate ${quantity} ${type}s in ${tone} tone about ${theme || 'general'} for ${category}`,
+        parameters: { ...generationParams, provider: provider || providers[0]?.provider || 'auto' },
         itemsCount: generated.length,
         success: true
       })
-      
+
       return NextResponse.json({
         success: true,
-        data: generated
+        data: generated,
+        meta: providers
       })
     } catch (aiError: any) {
       // Log the failed generation

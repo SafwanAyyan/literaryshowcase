@@ -1,508 +1,914 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Bot, Sparkles, Download, RefreshCw, Plus, Wand2, FileText } from "lucide-react"
-import type { Category, ContentItem } from "@/types/literary"
-import { ContentRefresh } from "@/lib/content-refresh"
-import toast from 'react-hot-toast'
-import { Button } from "@/components/ui/button"
+import {
+  Bot,
+  Sparkles,
+  RefreshCw,
+  FileText,
+  LibraryBig,
+  Tags,
+  History,
+  Filter as FilterIcon,
+  CheckCircle2,
+} from "lucide-react"
+import toast from "react-hot-toast"
 
-interface GeneratedContent {
-  content: string
-  author: string
-  source?: string
-  category: Category
-  type: "quote" | "poem" | "reflection"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
+
+import { ContentRefresh } from "@/lib/content-refresh"
+import type { AIDraftItem, AIDraftStatus, DraftEvent, Category } from "@/types/literary"
+
+const statusLabels: Record<AIDraftStatus, string> = {
+  pending: "Pending",
+  in_review: "In Review",
+  needs_revision: "Needs Revision",
+  approved: "Approved",
 }
+
+const statusBadgeVariant: Record<AIDraftStatus, string> = {
+  pending: "bg-slate-500/30 text-slate-100",
+  in_review: "bg-blue-500/20 text-blue-200",
+  needs_revision: "bg-amber-500/20 text-amber-200",
+  approved: "bg-emerald-500/20 text-emerald-200",
+}
+
+const categories: Category[] = [
+  "found-made",
+  "cinema",
+  "literary-masters",
+  "spiritual",
+  "original-poetry",
+  "heartbreak",
+]
+
+const tones = [
+  "inspirational",
+  "melancholic",
+  "contemplative",
+  "romantic",
+  "peaceful",
+  "mysterious",
+]
+
+const generationTypes: Array<"quote" | "poem" | "reflection"> = ["quote", "poem", "reflection"]
+
+const writingModes: Array<"original-ai" | "known-writers"> = ["original-ai", "known-writers"]
+
+const providerOptions = [
+  { value: "gemini", label: "Gemini 2.5 (default)" },
+  { value: "openai", label: "OpenAI" },
+  { value: "deepseek", label: "DeepSeek" },
+  { value: "both", label: "OpenAI + Gemini" },
+]
+
+const statusFilterOptions: Array<AIDraftStatus | "all"> = [
+  "pending",
+  "in_review",
+  "needs_revision",
+  "approved",
+  "all",
+]
+
+const providerFilterOptions = ["all", "gemini", "openai", "deepseek"]
+
+const parseTags = (value: string) =>
+  value
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
 
 export function AIContentGenerator() {
   const [isGenerating, setIsGenerating] = useState(false)
-  const [generatedContent, setGeneratedContent] = useState<GeneratedContent[]>([])
-  const [selectedCategory, setSelectedCategory] = useState<Category>("found-made")
-  const [selectedType, setSelectedType] = useState<"quote" | "poem" | "reflection">("quote")
-  const [quantity, setQuantity] = useState(5)
-  const [theme, setTheme] = useState("")
-  const [tone, setTone] = useState("inspirational")
-  const [provider, setProvider] = useState<"openai" | "gemini" | "both">("openai")
-  const [writingMode, setWritingMode] = useState<"known-writers" | "original-ai">("original-ai")
+  const [isComposingPrompt, setIsComposingPrompt] = useState(false)
+  const [promptPreview, setPromptPreview] = useState("")
+  const [showPromptPreview, setShowPromptPreview] = useState(false)
 
-  // Prompt preview state
-  const [composing, setComposing] = useState(false)
-  const [promptPreview, setPromptPreview] = useState<string>("")
-  const [showPreview, setShowPreview] = useState(false)
+  const [drafts, setDrafts] = useState<AIDraftItem[]>([])
+  const [loadingDrafts, setLoadingDrafts] = useState(true)
+  const [isRefreshingDrafts, setIsRefreshingDrafts] = useState(false)
+  const [selectedDraftIds, setSelectedDraftIds] = useState<Set<string>>(new Set())
+  const [draftEdits, setDraftEdits] = useState<Record<string, { tags: string; reviewNotes: string; content: string }>>({})
+  const [historyCache, setHistoryCache] = useState<Record<string, DraftEvent[]>>({})
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null)
+  const [isPublishing, setIsPublishing] = useState(false)
+
+  const [filters, setFilters] = useState({
+    status: "pending" as AIDraftStatus | "all",
+    category: "all" as Category | "all",
+    provider: "all" as string,
+    search: "",
+  })
+
+  const [generationTags, setGenerationTags] = useState("")
+  const [form, setForm] = useState({
+    category: "found-made" as Category,
+    type: "quote" as "quote" | "poem" | "reflection",
+    quantity: 6,
+    theme: "",
+    tone: "inspirational",
+    writingMode: "original-ai" as "original-ai" | "known-writers",
+    provider: "gemini" as string,
+  })
+
+  const fetchDrafts = useCallback(async () => {
+    setLoadingDrafts(true)
+    try {
+      const params = new URLSearchParams()
+      if (filters.status) params.set("status", filters.status)
+      if (filters.category) params.set("category", filters.category)
+      if (filters.provider) params.set("provider", filters.provider)
+      if (filters.search.trim()) params.set("q", filters.search.trim())
+
+      const response = await fetch(`/api/admin/ai/drafts?${params.toString()}`)
+      const json = await response.json()
+      if (!json.success) {
+        throw new Error(json.error || "Failed to load drafts")
+      }
+      setDrafts(json.items as AIDraftItem[])
+    } catch (error: any) {
+      console.error("Failed to load drafts", error)
+      toast.error(error?.message || "Failed to load draft library")
+    } finally {
+      setLoadingDrafts(false)
+    }
+  }, [filters])
+
+  useEffect(() => {
+    fetchDrafts()
+  }, [fetchDrafts])
+
+  useEffect(() => {
+    setDraftEdits((prev) => {
+      const next: Record<string, { tags: string; reviewNotes: string; content: string }> = {}
+      drafts.forEach((draft) => {
+        next[draft.id] = {
+          tags: prev[draft.id]?.tags ?? draft.tags.join(", "),
+          reviewNotes: prev[draft.id]?.reviewNotes ?? (draft.reviewNotes || ""),
+          content: prev[draft.id]?.content ?? draft.content,
+        }
+      })
+      return next
+    })
+  }, [drafts])
+
+  useEffect(() => {
+    setSelectedDraftIds((prev) => {
+      const next = new Set<string>()
+      drafts.forEach((draft) => {
+        if (prev.has(draft.id)) {
+          next.add(draft.id)
+        }
+      })
+      return next
+    })
+  }, [drafts])
+
+  const handlePreviewPrompt = async () => {
+    setIsComposingPrompt(true)
+    setShowPromptPreview(true)
+    try {
+      const response = await fetch("/api/ai/generate/compose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: form.category,
+          type: form.type,
+          theme: form.theme,
+          tone: form.tone,
+          quantity: form.quantity,
+          writingMode: form.writingMode,
+        }),
+      })
+      const json = await response.json()
+      if (!json.success) {
+        throw new Error(json.error || "Failed to compose prompt")
+      }
+      setPromptPreview(json.prompt || "")
+    } catch (error: any) {
+      console.error("Failed to compose prompt", error)
+      toast.error(error?.message || "Failed to compose prompt")
+    } finally {
+      setIsComposingPrompt(false)
+    }
+  }
 
   const handleGenerate = async () => {
     setIsGenerating(true)
-    
     try {
-      const response = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch("/api/admin/ai/drafts/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          category: selectedCategory,
-          type: selectedType,
-          theme,
-          tone,
-          quantity,
-          provider,
-          writingMode
+          category: form.category,
+          type: form.type,
+          tone: form.tone,
+          quantity: form.quantity,
+          theme: form.theme,
+          writingMode: form.writingMode,
+          provider: form.provider === "both" ? "both" : form.provider,
+          tags: generationTags,
         }),
       })
-
-      const result = await response.json()
-      if (result.success) {
-        setGeneratedContent(result.data)
-        toast.success(`Generated ${result.data.length} items successfully!`)
-      } else {
-        toast.error(result.error || 'Failed to generate content')
+      const json = await response.json()
+      if (!json.success) {
+        throw new Error(json.error || "Failed to generate drafts")
       }
+
+      const createdDrafts: AIDraftItem[] = json.drafts || []
+      if (createdDrafts.length === 0) {
+        toast("No new drafts were generated. Try adjusting your prompt.")
+        return
+      }
+
+      setDrafts((prev) => [...createdDrafts, ...prev])
+      setSelectedDraftIds((prev) => {
+        const next = new Set(prev)
+        createdDrafts.forEach((draft) => next.add(draft.id))
+        return next
+      })
+      toast.success(`Generated ${createdDrafts.length} drafts successfully`)
     } catch (error: any) {
-      console.error("Generation failed:", error)
-      toast.error('Failed to generate content')
+      console.error("Failed to generate drafts", error)
+      toast.error(error?.message || "Failed to generate drafts")
     } finally {
       setIsGenerating(false)
     }
   }
 
-  const handlePreviewPrompt = async () => {
-    setComposing(true)
-    setShowPreview(true)
+  const updateDraft = async (
+    id: string,
+    payload: {
+      status?: AIDraftStatus
+      tags?: string[]
+      reviewNotes?: string
+      content?: string
+    }
+  ) => {
+    const response = await fetch(`/api/admin/ai/drafts/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    const json = await response.json()
+    if (!json.success) {
+      throw new Error(json.error || "Failed to update draft")
+    }
+    const updatedDraft: AIDraftItem = json.draft
+    setDrafts((prev) => prev.map((draft) => (draft.id === id ? updatedDraft : draft)))
+    return updatedDraft
+  }
+
+  const handleStatusChange = async (id: string, status: AIDraftStatus) => {
     try {
-      const response = await fetch('/api/ai/generate/compose', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          category: selectedCategory,
-          type: selectedType,
-          theme,
-          tone,
-          quantity,
-          writingMode
-        })
+      await updateDraft(id, { status })
+      toast.success(`Draft moved to ${statusLabels[status]}`)
+    } catch (error: any) {
+      console.error("Failed to update status", error)
+      toast.error(error?.message || "Failed to update status")
+    }
+  }
+
+  const handleSaveDraft = async (id: string) => {
+    try {
+      const edits = draftEdits[id]
+      const updated = await updateDraft(id, {
+        tags: parseTags(edits?.tags || ""),
+        reviewNotes: edits?.reviewNotes ?? "",
+        content: edits?.content ?? "",
       })
-      const result = await response.json()
-      if (result.success) {
-        setPromptPreview(result.prompt || '')
-      } else {
-        toast.error(result.error || 'Failed to compose prompt')
+      setDraftEdits((prev) => ({
+        ...prev,
+        [id]: {
+          tags: updated.tags.join(", "),
+          reviewNotes: updated.reviewNotes || "",
+          content: updated.content,
+        },
+      }))
+      toast.success("Draft updated")
+    } catch (error: any) {
+      console.error("Failed to save draft", error)
+      toast.error(error?.message || "Failed to save draft")
+    }
+  }
+
+  const handleBulkPublish = async () => {
+    const ids = Array.from(selectedDraftIds)
+    if (!ids.length) {
+      toast("Select drafts to publish")
+      return
+    }
+
+    setIsPublishing(true)
+    try {
+      const response = await fetch("/api/admin/ai/drafts/bulk-publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      })
+      const json = await response.json()
+      if (!json.success) {
+        throw new Error(json.error || "Failed to publish drafts")
       }
-    } catch (e) {
-      toast.error('Failed to compose prompt')
+
+      const publishedCount = json.published || 0
+      if (publishedCount === 0) {
+        toast("No drafts were eligible for publishing")
+      } else {
+        toast.success(`Published ${publishedCount} drafts to the live library`)
+        ContentRefresh.notifyContentChange()
+        fetchDrafts()
+        setSelectedDraftIds(new Set())
+      }
+    } catch (error: any) {
+      console.error("Failed to publish drafts", error)
+      toast.error(error?.message || "Failed to publish drafts")
     } finally {
-      setComposing(false)
+      setIsPublishing(false)
     }
   }
 
-  const generateMockContent = (type: string, theme: string, tone: string) => {
-    const baseTheme = theme || "life"
-    
-    if (type === "quote") {
-      const quotes = [
-        `The ${baseTheme} we seek is often found in the ${tone} moments we create.`,
-        `In every ${baseTheme}, there lies a truth waiting to be discovered with ${tone} eyes.`,
-        `${tone.charAt(0).toUpperCase() + tone.slice(1)} hearts find beauty in the simplest forms of ${baseTheme}.`,
-        `The journey of ${baseTheme} teaches us that ${tone} souls never truly walk alone.`,
-        `When ${baseTheme} challenges us, we must respond with ${tone} courage and unwavering hope.`,
-      ]
-      return quotes[Math.floor(Math.random() * quotes.length)]
-    }
-    
-    if (type === "poem") {
-      return `In the realm of ${baseTheme},
-Where ${tone} dreams take flight,
-I find myself wandering
-Through corridors of light.
-
-Each step reveals a truth,
-Each breath, a whispered prayer,
-That in this dance of ${baseTheme},
-Love is always there.`
-    }
-    
-    // reflection
-    return `There's something profoundly ${tone} about ${baseTheme} that speaks to the deepest parts of our being. When we truly embrace this truth, we begin to understand that our experiences, both joyful and challenging, are threads in a larger tapestry of meaning.`
-  }
-
-  const handleSelectAll = () => {
-    const checkboxes = document.querySelectorAll('input[type="checkbox"][data-content-id]')
-    checkboxes.forEach(checkbox => {
-      (checkbox as HTMLInputElement).checked = true
+  const toggleDraftSelection = (id: string) => {
+    setSelectedDraftIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
     })
   }
 
-  const handleAddSelected = async () => {
-    const checkboxes = document.querySelectorAll('input[type="checkbox"][data-content-id]:checked')
-    const selectedItems = Array.from(checkboxes).map((checkbox, index) => {
-      const contentId = parseInt((checkbox as HTMLInputElement).dataset.contentId || "0")
-      return generatedContent[contentId]
-    }).filter(Boolean)
-    
-    if (selectedItems.length > 0) {
-      try {
-        const response = await fetch('/api/content/bulk', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ items: selectedItems }),
-        })
-
-        const result = await response.json()
-        if (result.success) {
-          // Notify that content has been updated
-          ContentRefresh.notifyContentChange()
-          
-          toast.success(`${selectedItems.length} items added to your content library successfully!`)
-          // Clear the generated content after adding
-          setGeneratedContent([])
-        } else {
-          toast.error(result.error || 'Failed to add content')
-        }
-      } catch (error) {
-        toast.error('Failed to add content. Please try again.')
-      }
+  const toggleSelectAll = () => {
+    if (selectedDraftIds.size === drafts.length) {
+      setSelectedDraftIds(new Set())
+      return
     }
+    setSelectedDraftIds(new Set(drafts.map((draft) => draft.id)))
   }
 
-  const presetTemplates = [
-    {
-      name: "Motivational Quotes",
-      category: "found-made" as Category,
-      type: "quote" as const,
-      theme: "motivation",
-      tone: "inspirational",
-    },
-    {
-      name: "Philosophical Reflections",
-      category: "literary-masters" as Category,
-      type: "reflection" as const,
-      theme: "philosophy",
-      tone: "contemplative",
-    },
-    {
-      name: "Love Poetry",
-      category: "original-poetry" as Category,
-      type: "poem" as const,
-      theme: "love",
-      tone: "romantic",
-    },
-    {
-      name: "Spiritual Wisdom",
-      category: "spiritual" as Category,
-      type: "quote" as const,
-      theme: "spirituality",
-      tone: "peaceful",
-    },
-  ]
+  const selectedApprovedCount = useMemo(() => {
+    return drafts.filter((draft) => selectedDraftIds.has(draft.id) && draft.status === "approved").length
+  }, [drafts, selectedDraftIds])
 
-  const applyTemplate = (template: typeof presetTemplates[0]) => {
-    setSelectedCategory(template.category)
-    setSelectedType(template.type)
-    setTheme(template.theme)
-    setTone(template.tone)
+  const handleHistoryToggle = async (id: string) => {
+    if (expandedHistoryId === id) {
+      setExpandedHistoryId(null)
+      return
+    }
+    if (!historyCache[id]) {
+      try {
+        const response = await fetch(`/api/admin/ai/drafts/${id}/events`)
+        const json = await response.json()
+        if (!json.success) {
+          throw new Error(json.error || "Failed to load history")
+        }
+        setHistoryCache((prev) => ({ ...prev, [id]: json.history as DraftEvent[] }))
+      } catch (error: any) {
+        console.error("Failed to load history", error)
+        toast.error(error?.message || "Failed to load history")
+        return
+      }
+    }
+    setExpandedHistoryId(id)
+  }
+
+  const refreshDrafts = async () => {
+    setIsRefreshingDrafts(true)
+    await fetchDrafts()
+    setIsRefreshingDrafts(false)
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">AI Content Generator</h1>
-        <p className="text-gray-300">Generate literary content in bulk using AI assistance</p>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+          <Bot className="h-7 w-7" />
+          <span>Admin AI Content Generator</span>
+        </h1>
+        <p className="text-gray-300 max-w-3xl">
+          Generate high-quality drafts with Gemini 2.5, review them in a private library, tag for discovery, and bulk publish when the content is ready for the world.
+        </p>
       </div>
 
-      {/* Configuration Panel */}
-      <div className="glass-card p-6">
-        <h2 className="text-xl font-semibold text-white mb-6 flex items-center space-x-2">
-          <Wand2 className="w-5 h-5" />
-          <span>Generation Settings</span>
-        </h2>
-
-        {/* Preset Templates */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-300 mb-3">Quick Templates</label>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            {presetTemplates.map((template) => (
-              <button
-                key={template.name}
-                onClick={() => applyTemplate(template)}
-                className="p-3 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg text-white hover:from-purple-500/20 hover:to-pink-500/20 transition-all duration-300 text-sm"
-              >
-                {template.name}
-              </button>
-            ))}
+      <div className="glass-card p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              <span>Generation Settings</span>
+            </h2>
+            <p className="text-sm text-gray-300">
+              Strong prompts tuned for each category ensure grounded, verifiable output.
+            </p>
           </div>
         </div>
 
-        {/* Writing Mode Selection */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-300 mb-3">Writing Mode</label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                writingMode === 'original-ai'
-                  ? 'border-purple-500 bg-purple-500/20'
-                  : 'border-white/20 bg-white/5 hover:border-purple-400'
-              }`}
-              onClick={() => setWritingMode('original-ai')}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm text-gray-300">Category</label>
+            <Select
+              value={form.category}
+              onValueChange={(value) => setForm((prev) => ({ ...prev, category: value as Category }))}
             >
-              <div className="flex items-center mb-2">
-                <div className={`w-4 h-4 rounded-full border-2 mr-3 ${
-                  writingMode === 'original-ai' ? 'border-purple-500 bg-purple-500' : 'border-gray-400'
-                }`} />
-                <h3 className="text-white font-medium">Original AI Writing</h3>
-              </div>
-              <p className="text-gray-300 text-sm">
-                AI creates completely original content from its own creativity and understanding. 
-                Produces unique, authentic pieces with fresh perspectives and original voice.
-              </p>
-            </motion.div>
-
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                writingMode === 'known-writers'
-                  ? 'border-purple-500 bg-purple-500/20'
-                  : 'border-white/20 bg-white/5 hover:border-purple-400'
-              }`}
-              onClick={() => setWritingMode('known-writers')}
-            >
-              <div className="flex items-center mb-2">
-                <div className={`w-4 h-4 rounded-full border-2 mr-3 ${
-                  writingMode === 'known-writers' ? 'border-purple-500 bg-purple-500' : 'border-gray-400'
-                }`} />
-                <h3 className="text-white font-medium">Known Writers Style</h3>
-              </div>
-              <p className="text-gray-300 text-sm">
-                AI writes in the style of famous authors and writers from the selected genre. 
-                Emulates the voice, techniques, and wisdom of literary masters and renowned figures.
-              </p>
-            </motion.div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value as Category)}
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="found-made">Found/Made</option>
-              <option value="cinema">Cinema</option>
-              <option value="literary-masters">Literary Masters</option>
-              <option value="spiritual">Spiritual</option>
-              <option value="original-poetry">Original Poetry</option>
-              <option value="heartbreak">Heartbreak</option>
-            </select>
+              <SelectTrigger className="bg-white/10 text-white border-white/20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category.replace(/-/g, " ")}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Content Type</label>
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value as "quote" | "poem" | "reflection")}
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+          <div className="space-y-2">
+            <label className="text-sm text-gray-300">Type</label>
+            <Select
+              value={form.type}
+              onValueChange={(value) => setForm((prev) => ({ ...prev, type: value as "quote" | "poem" | "reflection" }))}
             >
-              <option value="quote">Quote</option>
-              <option value="poem">Poem</option>
-              <option value="reflection">Reflection</option>
-            </select>
+              <SelectTrigger className="bg-white/10 text-white border-white/20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {generationTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type[0].toUpperCase() + type.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Quantity</label>
-            <select
-              value={quantity}
-              onChange={(e) => setQuantity(parseInt(e.target.value))}
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value={5}>5 items</option>
-              <option value={10}>10 items</option>
-              <option value={15}>15 items</option>
-              <option value={20}>20 items</option>
-            </select>
+          <div className="space-y-2">
+            <label className="text-sm text-gray-300">Tone</label>
+            <Select value={form.tone} onValueChange={(value) => setForm((prev) => ({ ...prev, tone: value }))}>
+              <SelectTrigger className="bg-white/10 text-white border-white/20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {tones.map((tone) => (
+                    <SelectItem key={tone} value={tone}>
+                      {tone[0].toUpperCase() + tone.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Theme</label>
-            <input
-              type="text"
-              value={theme}
-              onChange={(e) => setTheme(e.target.value)}
-              placeholder="e.g., love, nature, wisdom..."
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          <div className="space-y-2">
+            <label className="text-sm text-gray-300">Quantity</label>
+            <Input
+              type="number"
+              min={1}
+              max={20}
+              value={form.quantity}
+              onChange={(event) => setForm((prev) => ({ ...prev, quantity: Number(event.target.value) }))}
+              className="bg-white/10 text-white border-white/20"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Tone</label>
-            <select
-              value={tone}
-              onChange={(e) => setTone(e.target.value)}
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="inspirational">Inspirational</option>
-              <option value="melancholic">Melancholic</option>
-              <option value="contemplative">Contemplative</option>
-              <option value="romantic">Romantic</option>
-              <option value="peaceful">Peaceful</option>
-              <option value="mysterious">Mysterious</option>
-            </select>
+          <div className="space-y-2">
+            <label className="text-sm text-gray-300">Theme (optional)</label>
+            <Input
+              value={form.theme}
+              onChange={(event) => setForm((prev) => ({ ...prev, theme: event.target.value }))}
+              placeholder="e.g. resilience, night drives, belonging"
+              className="bg-white/10 text-white border-white/20 placeholder:text-gray-400"
+            />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">AI Provider</label>
-            <select
-              value={provider}
-              onChange={(e) => setProvider(e.target.value as "openai" | "gemini" | "both")}
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+          <div className="space-y-2">
+            <label className="text-sm text-gray-300">Writing Mode</label>
+            <Select
+              value={form.writingMode}
+              onValueChange={(value) => setForm((prev) => ({ ...prev, writingMode: value as "original-ai" | "known-writers" }))}
             >
-              <option value="openai">OpenAI (GPT-4o)</option>
-              <option value="gemini">Google Gemini</option>
-              <option value="both">Both Providers</option>
-            </select>
+              <SelectTrigger className="bg-white/10 text-white border-white/20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {writingModes.map((mode) => (
+                    <SelectItem key={mode} value={mode}>
+                      {mode === "original-ai" ? "Original AI" : "Known Writers"}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="flex items-end">
-            <div className="w-full flex gap-3">
-              <Button
-                onClick={handlePreviewPrompt}
-                disabled={composing}
-                round="pill"
-                className="flex-1"
-                variant="brand"
-                size="lg"
-                title="Preview the exact composed prompt used for generation"
-              >
-                {composing ? (
-                  <>
-                    <RefreshCw className="w-5 h-5 animate-spin" />
-                    <span>Previewing…</span>
-                  </>
-                ) : (
-                  <>
-                    <FileText className="w-5 h-5" />
-                    <span>Preview Prompt</span>
-                  </>
-                )}
-              </Button>
-              <Button
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                round="pill"
-                className="flex-1"
-                variant="brand"
-                size="lg"
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="w-5 h-5 animate-spin" />
-                    <span>Generating…</span>
-                  </>
-                ) : (
-                  <>
-                    <Bot className="w-5 h-5" />
-                    <span>Generate</span>
-                  </>
-                )}
-              </Button>
-            </div>
+          <div className="space-y-2">
+            <label className="text-sm text-gray-300">Preferred Provider</label>
+            <Select value={form.provider} onValueChange={(value) => setForm((prev) => ({ ...prev, provider: value }))}>
+              <SelectTrigger className="bg-white/10 text-white border-white/20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {providerOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-400">
+              Gemini 2.5 is the default. Choose “Both” to aggregate Gemini and OpenAI responses with deduplication.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm text-gray-300">Default Tags for New Drafts</label>
+            <Input
+              value={generationTags}
+              onChange={(event) => setGenerationTags(event.target.value)}
+              placeholder="comma separated"
+              className="bg-white/10 text-white border-white/20 placeholder:text-gray-400"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex gap-3">
+            <Button
+              onClick={handlePreviewPrompt}
+              variant="brand"
+              round="pill"
+              disabled={isComposingPrompt}
+              className="flex items-center gap-2"
+            >
+              {isComposingPrompt ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4" />
+              )}
+              <span>{isComposingPrompt ? "Composing…" : "Preview Prompt"}</span>
+            </Button>
+            <Button
+              onClick={handleGenerate}
+              variant="brand"
+              round="pill"
+              disabled={isGenerating}
+              className="flex items-center gap-2"
+            >
+              {isGenerating ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              <span>{isGenerating ? "Generating…" : "Generate Drafts"}</span>
+            </Button>
+          </div>
+          <div className="text-xs text-gray-400">
+            Gemini 2.5 receives an opinionated system prompt tuned to each category for grounded, human cadence results.
           </div>
         </div>
       </div>
 
-      {/* Prompt preview panel */}
-      {showPreview && (
-        <div className="glass-card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-white font-medium">Composed Prompt (read-only)</h3>
-            <Button variant="brand" size="sm" round="pill" onClick={() => setShowPreview(false)}>
-              Close
-            </Button>
-          </div>
-          <pre className="bg-black/40 text-purple-100 p-3 rounded-xl max-h-[260px] overflow-auto text-xs whitespace-pre-wrap">
-{promptPreview || 'No prompt available.'}
-          </pre>
-        </div>
-      )}
-
-      {/* Generated Content */}
       <AnimatePresence>
-        {generatedContent.length > 0 && (
+        {showPromptPreview && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="glass-card p-6"
+            exit={{ opacity: 0, y: -10 }}
+            className="glass-card p-5 space-y-3"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-white flex items-center space-x-2">
-                <Sparkles className="w-5 h-5" />
-                <span>Generated Content ({generatedContent.length} items)</span>
-              </h2>
-              <div className="flex items-center gap-3">
-                <Button variant="brand" size="sm" round="pill" onClick={handleSelectAll}>
-                  Select All
-                </Button>
-                <Button variant="brand" size="sm" round="pill" onClick={handleAddSelected}>
-                  <Plus className="w-4 h-4" />
-                  <span>Add Selected</span>
-                </Button>
-              </div>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white text-lg">Composed Prompt</h3>
+              <Button variant="ghost" size="sm" onClick={() => setShowPromptPreview(false)}>
+                Close
+              </Button>
             </div>
-
-            <div className="space-y-4">
-              {generatedContent.map((item, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all duration-300"
-                >
-                  <div className="flex items-start space-x-4">
-                    <input
-                      type="checkbox"
-                      data-content-id={index}
-                      className="mt-1 w-4 h-4 text-purple-500 bg-white/10 border-white/20 rounded focus:ring-purple-500 focus:ring-2"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full">
-                          {item.category}
-                        </span>
-                        <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full">
-                          {item.type}
-                        </span>
-                      </div>
-                      <p className="text-white text-sm mb-2 whitespace-pre-line">{item.content}</p>
-                      <p className="text-gray-400 text-xs">By {item.author}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+            <pre className="max-h-72 overflow-auto rounded-xl bg-black/40 p-4 text-xs leading-relaxed text-purple-100 whitespace-pre-wrap">
+              {promptPreview || "No prompt available."}
+            </pre>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* AI Disclaimer */}
-      <div className="glass-card p-4 border-yellow-500/20">
-        <div className="flex items-center space-x-3 text-yellow-300">
-          <FileText className="w-5 h-5" />
-          <div>
-            <p className="text-sm font-medium">AI Generation Notice</p>
-            <p className="text-xs text-yellow-200/80 mt-1">
-              This is a demo implementation. In production, integrate with GPT-4, Claude, or similar AI services for actual content generation.
-            </p>
+      <div className="glass-card p-6 space-y-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3 text-white">
+            <LibraryBig className="h-5 w-5" />
+            <div>
+              <h2 className="text-xl font-semibold">Draft Library</h2>
+              <p className="text-sm text-gray-300">
+                Review, tag, and approve AI drafts before they reach the live collection.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Select
+              value={filters.status}
+              onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value as AIDraftStatus | "all" }))}
+            >
+              <SelectTrigger className="w-36 bg-white/10 text-white border-white/20">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {statusFilterOptions.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status === "all" ? "All statuses" : statusLabels[status]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={filters.category}
+              onValueChange={(value) => setFilters((prev) => ({ ...prev, category: value as Category | "all" }))}
+            >
+              <SelectTrigger className="w-40 bg-white/10 text-white border-white/20">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category.replace(/-/g, " ")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={filters.provider}
+              onValueChange={(value) => setFilters((prev) => ({ ...prev, provider: value }))}
+            >
+              <SelectTrigger className="w-36 bg-white/10 text-white border-white/20">
+                <SelectValue placeholder="Provider" />
+              </SelectTrigger>
+              <SelectContent>
+                {providerFilterOptions.map((provider) => (
+                  <SelectItem key={provider} value={provider}>
+                    {provider === "all" ? "All providers" : provider.toUpperCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="flex items-center gap-2">
+              <Input
+                value={filters.search}
+                onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
+                placeholder="Search content or notes"
+                className="bg-white/10 text-white border-white/20 placeholder:text-gray-400"
+              />
+              <Button
+                onClick={refreshDrafts}
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                title="Refresh library"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshingDrafts ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
           </div>
         </div>
+
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3 text-sm text-gray-300">
+            <FilterIcon className="h-4 w-4" />
+            <span>
+              Showing {drafts.length} draft{drafts.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleSelectAll}
+              className="border-white/20 text-white"
+            >
+              {selectedDraftIds.size === drafts.length ? "Clear Selection" : "Select All"}
+            </Button>
+            <Button
+              variant="brand"
+              size="sm"
+              disabled={isPublishing || selectedApprovedCount === 0}
+              onClick={handleBulkPublish}
+              className="flex items-center gap-2"
+            >
+              {isPublishing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              <span>
+                Publish {selectedApprovedCount > 0 ? `${selectedApprovedCount} Approved` : "Approved"} Draft
+                {selectedApprovedCount === 1 ? "" : "s"}
+              </span>
+            </Button>
+          </div>
+        </div>
+
+        <Separator className="bg-white/10" />
+
+        {loadingDrafts ? (
+          <div className="flex items-center justify-center py-10 text-gray-300">
+            <RefreshCw className="h-5 w-5 animate-spin" />
+            <span className="ml-2 text-sm">Loading drafts…</span>
+          </div>
+        ) : drafts.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-white/20 p-10 text-center text-gray-300">
+            No drafts yet. Generate new content to populate the library.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {drafts.map((draft) => {
+              const edits = draftEdits[draft.id] || { tags: "", reviewNotes: "", content: draft.content }
+              const history = historyCache[draft.id]
+              const isExpanded = expandedHistoryId === draft.id
+
+              return (
+                <motion.div
+                  key={draft.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-inner"
+                >
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        checked={selectedDraftIds.has(draft.id)}
+                        onCheckedChange={() => toggleDraftSelection(draft.id)}
+                        className="mt-1 border-white/40"
+                      />
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-300">
+                          <Badge className={`${statusBadgeVariant[draft.status]} capitalize`}>{statusLabels[draft.status]}</Badge>
+                          <Badge className="bg-purple-500/20 text-purple-200">{draft.category.replace(/-/g, " ")}</Badge>
+                          <Badge className="bg-blue-500/20 text-blue-100">{draft.type}</Badge>
+                          {draft.provider && (
+                            <Badge className="bg-emerald-500/20 text-emerald-200">
+                              {draft.provider.toUpperCase()}{draft.model ? ` · ${draft.model}` : ""}
+                            </Badge>
+                          )}
+                          <span className="text-xs text-gray-400">
+                            Generated {new Date(draft.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <Textarea
+                          value={edits.content}
+                          onChange={(event) =>
+                            setDraftEdits((prev) => ({
+                              ...prev,
+                              [draft.id]: { ...prev[draft.id], content: event.target.value },
+                            }))
+                          }
+                          className="min-h-[140px] bg-black/30 text-white border-white/20"
+                        />
+                        <div className="flex flex-wrap gap-2 text-xs text-gray-300">
+                          <Tags className="h-3.5 w-3.5 text-purple-200" />
+                          {draft.tags.length ? (
+                            draft.tags.map((tag) => (
+                              <Badge key={tag} className="bg-purple-500/20 text-purple-100">
+                                {tag}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span>No tags yet</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 text-sm text-gray-300">
+                      <label className="text-xs uppercase tracking-wide">Status</label>
+                      <Select value={draft.status} onValueChange={(value) => handleStatusChange(draft.id, value as AIDraftStatus)}>
+                        <SelectTrigger className="w-40 bg-white/10 text-white border-white/20">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(["pending", "in_review", "needs_revision", "approved"] as AIDraftStatus[]).map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {statusLabels[status]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {draft.publishedAt && (
+                        <p className="text-xs text-emerald-200">
+                          Published {new Date(draft.publishedAt).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-xs uppercase tracking-wide text-gray-400">Tags</label>
+                      <Input
+                        value={edits.tags}
+                        onChange={(event) =>
+                          setDraftEdits((prev) => ({
+                            ...prev,
+                            [draft.id]: { ...prev[draft.id], tags: event.target.value },
+                          }))
+                        }
+                        placeholder="comma separated"
+                        className="bg-black/30 text-white border-white/20 placeholder:text-gray-400"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs uppercase tracking-wide text-gray-400">Review Notes</label>
+                      <Textarea
+                        value={edits.reviewNotes}
+                        onChange={(event) =>
+                          setDraftEdits((prev) => ({
+                            ...prev,
+                            [draft.id]: { ...prev[draft.id], reviewNotes: event.target.value },
+                          }))
+                        }
+                        placeholder="Context for editors"
+                        className="min-h-[80px] bg-black/30 text-white border-white/20 placeholder:text-gray-400"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <Button
+                      variant="brand"
+                      size="sm"
+                      onClick={() => handleSaveDraft(draft.id)}
+                      className="flex items-center gap-2"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      Save Draft Updates
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-white/20 text-white"
+                      onClick={() => handleHistoryToggle(draft.id)}
+                    >
+                      <History className="mr-2 h-4 w-4" />
+                      {isExpanded ? "Hide" : "View"} History
+                    </Button>
+                  </div>
+
+                  <AnimatePresence initial={false}>
+                    {isExpanded && history && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-4 overflow-hidden rounded-xl bg-black/40 p-4"
+                      >
+                        <h4 className="mb-2 text-sm font-semibold text-white">History</h4>
+                        <div className="space-y-2 text-xs text-gray-200">
+                          {history.length === 0 ? (
+                            <p>No events recorded yet.</p>
+                          ) : (
+                            history.map((event) => (
+                              <div key={event.id} className="rounded-lg bg-white/5 p-3">
+                                <div className="flex flex-wrap items-center gap-2 text-gray-200">
+                                  <Badge className="bg-white/10 text-white">{event.action.replace(/_/g, " ")}</Badge>
+                                  <span>{event.actorName || "System"}</span>
+                                  <span className="text-gray-400">
+                                    {new Date(event.createdAt).toLocaleString()}
+                                  </span>
+                                </div>
+                                {event.payload && Object.keys(event.payload).length > 0 && (
+                                  <pre className="mt-2 whitespace-pre-wrap text-[11px] text-gray-300">
+                                    {JSON.stringify(event.payload, null, 2)}
+                                  </pre>
+                                )}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

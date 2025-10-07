@@ -24,6 +24,13 @@ interface GeneratedContent {
   type: "quote" | "poem" | "reflection"
 }
 
+interface GenerationResult {
+  items: GeneratedContent[]
+  prompt: string
+  provider: AIProvider
+  model: string
+}
+
 interface SourceInfo {
   author: string
   source?: string
@@ -82,7 +89,7 @@ export class UnifiedAIService {
           },
           gemini: {
             apiKey: settings.geminiApiKey || process.env.GEMINI_API_KEY || '',
-            model: geminiModelOverride || 'gemini-2.0-flash-thinking-exp-1219',  // Latest and best model
+            model: geminiModelOverride || 'gemini-2.5-pro',
             fallbackModel: 'gemini-2.0-flash-exp',
             maxTokens: parsedMax || 2000,
             temperature: typeof parsedTemp === 'number' ? parsedTemp : 0.9
@@ -137,7 +144,7 @@ export class UnifiedAIService {
       },
       gemini: {
         apiKey: process.env.GEMINI_API_KEY || '',
-        model: 'gemini-2.0-flash-thinking-exp-1219',  // Best model for emotional content
+        model: 'gemini-2.5-pro',
         fallbackModel: 'gemini-2.0-flash-exp',
         maxTokens: 2000,
         temperature: 0.9
@@ -686,18 +693,24 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
   /**
     * Generate content using the selected AI provider
     */
-   static async generateContent(params: GenerationParameters, options?: { provider?: AIProvider }): Promise<GeneratedContent[]> {
+   static async generateContent(params: GenerationParameters, options?: { provider?: AIProvider }): Promise<GenerationResult> {
     try {
-      const { provider, config, enableFallback, settings } = await this.getCurrentProvider(options?.provider, 'generate')
+      const { provider, config } = await this.getCurrentProvider(options?.provider, 'generate')
       // Apply explain/analyze overrides when invoked from public explain endpoint
 
       if (!config.apiKey) {
         console.warn(`[UnifiedAI] No API key configured for ${provider}`)
-        return this.getFallbackContent(params)
+        const fallbackItems = this.getFallbackContent(params)
+        return {
+          items: fallbackItems,
+          prompt: await this.composeGenerationPrompt(params),
+          provider,
+          model: config.model,
+        }
       }
 
       console.log(`[UnifiedAI] Generating content using ${provider.toUpperCase()}`)
- 
+
       const basePrompt = await this.getSystemPromptExtended('generate').catch(() => '')
       const overrideText =
         await getCategoryOverride(params.category as any).catch(() => (CategoryPromptOverrides as any)[params.category] || '')
@@ -717,12 +730,22 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
           break
         default:
           console.error(`[UnifiedAI] Unknown provider: ${provider}`)
-          return this.getFallbackContent(params)
+          return {
+            items: this.getFallbackContent(params),
+            prompt,
+            provider,
+            model: config.model,
+          }
       }
 
       const parsed = this.parseGenerationResponse(result, params)
       console.log(`[UnifiedAI] Generated ${parsed.length} items using ${provider.toUpperCase()}`)
-      return parsed
+      return {
+        items: parsed,
+        prompt,
+        provider,
+        model: config.model,
+      }
     } catch (error: any) {
       console.error('[UnifiedAI] Error in generateContent:', error)
       // Try provider fallback if enabled
@@ -755,7 +778,12 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
             else result = await this.callDeepSeekForGeneration(config, prompt)
             const parsed = this.parseGenerationResponse(result, params)
             console.log(`[UnifiedAI] Fallback provider ${fallbackProvider.toUpperCase()} succeeded with ${parsed.length} items`)
-            return parsed
+            return {
+              items: parsed,
+              prompt,
+              provider: fallbackProvider,
+              model: config.model,
+            }
           } catch (inner) {
             console.warn(`[UnifiedAI] Fallback provider ${fallbackProvider.toUpperCase()} failed:`, (inner as any)?.message)
             continue
@@ -765,7 +793,12 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
         // ignore
       }
       // Last resort
-      return this.getFallbackContent(params)
+      return {
+        items: this.getFallbackContent(params),
+        prompt: await this.composeGenerationPrompt(params),
+        provider: options?.provider || 'gemini',
+        model: 'offline-fallback',
+      }
     }
   }
 
@@ -806,7 +839,21 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
       prompt
     ])
 
-    return result.response.text()
+    const maybeText = result?.response?.text
+    if (typeof maybeText === 'function') {
+      const value = maybeText()
+      if (typeof value === 'string') return value
+    }
+
+    const parts = result?.response?.candidates?.flatMap(candidate =>
+      candidate.content?.parts?.map(part => (part as any)?.text || '') || []
+    ) || []
+
+    if (parts.length) {
+      return parts.join('\n')
+    }
+
+    return ''
   }
 
   /**
