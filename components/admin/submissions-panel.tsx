@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { Button } from '@/components/ui/button'
 
 interface Submission {
   id: string
@@ -177,12 +178,9 @@ export function SubmissionsPanel({ onSubmissionUpdate }: SubmissionsPanelProps) 
             <option value="rejected">Rejected</option>
           </select>
           
-          <button
-            onClick={loadSubmissions}
-            className="p-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
-          >
-            <RefreshCw className="w-4 h-4 text-white" />
-          </button>
+          <Button onClick={loadSubmissions} variant="brand" size="icon" className="p-2">
+            <RefreshCw className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
@@ -251,13 +249,10 @@ export function SubmissionsPanel({ onSubmissionUpdate }: SubmissionsPanelProps) 
                 <div className="flex flex-col gap-2">
                   {submission.status === 'pending' && (
                     <>
-                      <button
-                        onClick={() => setSelectedSubmission(submission)}
-                        className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
-                      >
+                      <Button onClick={() => setSelectedSubmission(submission)} variant="brand" className="px-3 py-2 text-sm">
                         <Eye className="w-4 h-4" />
                         Review
-                      </button>
+                      </Button>
                     </>
                   )}
                   
@@ -364,31 +359,23 @@ export function SubmissionsPanel({ onSubmissionUpdate }: SubmissionsPanelProps) 
                 </div>
                 
                 <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={() => handleReview(selectedSubmission.id, 'approve')}
-                    disabled={isReviewing}
-                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-800 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
-                  >
+                  <Button onClick={() => handleReview(selectedSubmission.id, 'approve')} disabled={isReviewing} variant="brand" className="flex-1 py-3 px-6 font-semibold flex items-center justify-center gap-2">
                     {isReviewing ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2"></div>
                     ) : (
                       <CheckCircle className="w-4 h-4" />
                     )}
                     Approve
-                  </button>
+                  </Button>
                   
-                  <button
-                    onClick={() => handleReview(selectedSubmission.id, 'reject')}
-                    disabled={isReviewing}
-                    className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-800 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
-                  >
+                  <Button onClick={() => handleReview(selectedSubmission.id, 'reject')} disabled={isReviewing} variant="brand" className="flex-1 py-3 px-6 font-semibold flex items-center justify-center gap-2">
                     {isReviewing ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2"></div>
                     ) : (
                       <XCircle className="w-4 h-4" />
                     )}
                     Reject
-                  </button>
+                  </Button>
                 </div>
               </div>
             </motion.div>

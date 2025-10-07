@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Heart, Send, ChevronDown, ChevronUp } from 'lucide-react'
-import { GradientButton } from './ui/gradient-button'
 import { Button } from '@/components/ui/button'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 type Props = {
   id: string
@@ -237,9 +238,10 @@ export function ContentDetailClient({ id, content, author, category, source, typ
   return (
     <div className="w-full">
       {(variant === 'like-only' || variant === 'all') && (
-        <GradientButton onClick={toggleLike} disabled={busy} leftIcon={<Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />}>
+        <Button variant="brand" onClick={toggleLike} disabled={busy} className="px-4 py-2">
+          <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
           {liked ? 'Liked' : 'Like'}
-        </GradientButton>
+        </Button>
       )}
 
       {(variant === 'ai-only' || variant === 'all') && (
@@ -252,9 +254,10 @@ export function ContentDetailClient({ id, content, author, category, source, typ
                 onChange={(e) => setQuestion(e.target.value)}
                 className="w-full min-h-28 bg-white/5 border border-white/10 rounded-xl text-white p-3 focus:outline-none focus:ring-2 focus:ring-purple-400/50"
               />
-              <GradientButton onClick={ask} disabled={loading} leftIcon={<Send className="w-4 h-4" />} rounded="xl">
+              <Button onClick={ask} disabled={loading} variant="brand">
+                <Send className="w-4 h-4" />
                 {loading ? 'Thinking…' : 'Ask'}
-              </GradientButton>
+              </Button>
               {answer && (
                 <div className="rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-transparent p-4">
                   <div className="prose prose-invert prose-sm max-w-none">
@@ -274,7 +277,8 @@ export function ContentDetailClient({ id, content, author, category, source, typ
             </div>
 
             <div className="mt-6 text-center">
-              <GradientButton
+              <Button
+                variant="brand"
                 onClick={async () => {
                   setAnalyzing(true)
                   try {
@@ -291,10 +295,9 @@ export function ContentDetailClient({ id, content, author, category, source, typ
                   }
                 }}
                 disabled={analyzing}
-                rounded="xl"
               >
                 {analyzing ? 'Analyzing…' : 'Deep literary analysis'}
-              </GradientButton>
+              </Button>
 
               {/* Balanced two-column layout */}
               {analyzing && (

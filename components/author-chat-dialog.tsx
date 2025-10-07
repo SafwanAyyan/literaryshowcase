@@ -143,7 +143,6 @@ export function AuthorChatDialog({
     <Button 
       variant="brand" 
       size="lg"
-      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg"
     >
       <MessageCircle className="w-5 h-5 mr-2" />
       Chat with {authorName}
@@ -290,7 +289,8 @@ export function AuthorChatDialog({
                 <Button
                   onClick={sendMessage}
                   disabled={!currentMessage.trim() || isLoading}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+                  variant="brand"
+                  className="px-6"
                 >
                   {isLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

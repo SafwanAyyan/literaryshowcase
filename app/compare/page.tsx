@@ -156,9 +156,8 @@ export default function ComparePage() {
           {(item1 || item2) && (
             <Button
               onClick={handleReset}
-              variant="outline"
+              variant="brand"
               size="sm"
-              className="border-white/10"
             >
               <X className="w-4 h-4 mr-2" />
               Reset
@@ -195,7 +194,8 @@ export default function ComparePage() {
                 <Button
                   onClick={() => setItem1(null)}
                   size="sm"
-                  className="w-full bg-gradient-to-r from-[#1e1e1f] to-[#2a0a37] hover:from-[#252526] hover:to-[#3a0f4d] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_20px_rgba(0,0,0,0.35)] border-0"
+                  variant="brand"
+                  className="w-full"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Change Selection
@@ -208,7 +208,7 @@ export default function ComparePage() {
                   Click on a content item to select it, or use the button on any content detail page
                 </p>
                 <Link href="/">
-                  <Button variant="outline" className="border-white/10">
+                  <Button variant="brand">
                     Browse Content
                   </Button>
                 </Link>
@@ -243,7 +243,8 @@ export default function ComparePage() {
                 <Button
                   onClick={() => setItem2(null)}
                   size="sm"
-                  className="w-full bg-gradient-to-r from-[#1e1e1f] to-[#2a0a37] hover:from-[#252526] hover:to-[#3a0f4d] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_20px_rgba(0,0,0,0.35)] border-0"
+                  variant="brand"
+                  className="w-full"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Change Selection
@@ -311,7 +312,8 @@ export default function ComparePage() {
             <Button
               onClick={handleCompare}
               disabled={comparing}
-              className="w-full bg-purple-600 hover:bg-purple-700 py-6 text-lg"
+              variant="brand"
+              className="w-full py-6 text-lg"
             >
               {comparing ? (
                 <>
@@ -388,17 +390,10 @@ export default function ComparePage() {
                 </ReactMarkdown>
               </div>
               <div className="mt-6 flex flex-col sm:flex-row gap-4">
-                <Button
-                  onClick={handleReset}
-                  className="flex-1 bg-gradient-to-r from-[#1e1e1f] to-[#2a0a37] hover:from-[#252526] hover:to-[#3a0f4d] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_20px_rgba(0,0,0,0.35)] border-0"
-                >
+                <Button onClick={handleReset} variant="brand" className="flex-1">
                   Compare Different Items
                 </Button>
-                <Button
-                  onClick={handleCompare}
-                  disabled={comparing}
-                  className="flex-1 bg-gradient-to-r from-[#1e1e1f] to-[#2a0a37] hover:from-[#252526] hover:to-[#3a0f4d] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_20px_rgba(0,0,0,0.35)] border-0"
-                >
+                <Button onClick={handleCompare} disabled={comparing} variant="brand" className="flex-1">
                   {comparing ? 'Regenerating...' : 'Regenerate Analysis'}
                 </Button>
               </div>

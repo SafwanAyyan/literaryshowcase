@@ -29,9 +29,9 @@ export function CompareQuotesButton({ currentItem, compact = false }: CompareQuo
   return (
     <>
       <Button
-        variant="ghost"
+        variant="brand"
         size={compact ? "sm" : "default"}
-        className="gap-2 text-gray-300 hover:text-purple-300"
+        className="gap-2"
         onClick={handleCompare}
       >
         <GitCompare className="w-4 h-4" />

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Send, BookOpen, User, MessageSquare, AlertCircle, CheckCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import type { Category } from '@/types/literary'
 
 interface SubmissionFormProps {
@@ -98,12 +99,9 @@ export function SubmissionForm({ onSuccess }: SubmissionFormProps) {
         <p className="text-gray-300 mb-6">
           Thank you for contributing to our literary collection. Your submission is now under review.
         </p>
-        <button
-          onClick={() => setSubmitStatus('idle')}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors"
-        >
+        <Button onClick={() => setSubmitStatus('idle')} variant="brand">
           Submit Another
-        </button>
+        </Button>
       </motion.div>
     )
   }
@@ -281,11 +279,7 @@ export function SubmissionForm({ onSuccess }: SubmissionFormProps) {
         )}
 
         {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center"
-        >
+        <Button type="submit" disabled={isSubmitting} variant="brand" className="w-full font-semibold py-3 px-6 flex items-center justify-center">
           {isSubmitting ? (
             <>
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
@@ -297,7 +291,7 @@ export function SubmissionForm({ onSuccess }: SubmissionFormProps) {
               Submit Content
             </>
           )}
-        </button>
+        </Button>
       </form>
     </motion.div>
   )

@@ -171,7 +171,7 @@ export default function ProfilePage() {
               </div>
               <Button
                 onClick={() => setShowCreateDialog(true)}
-                className="bg-purple-600 hover:bg-purple-700"
+                variant="brand"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 New Collection
@@ -194,7 +194,7 @@ export default function ProfilePage() {
                 </p>
                 <Button
                   onClick={() => setShowCreateDialog(true)}
-                  className="bg-purple-600 hover:bg-purple-700"
+                  variant="brand"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Create Your First Collection
@@ -272,9 +272,8 @@ export default function ProfilePage() {
                             setNewDescription(selectedCollectionData.description || '')
                             setShowEditDialog(true)
                           }}
-                          variant="outline"
+                          variant="brand"
                           size="sm"
-                          className="border-white/10"
                         >
                           <Edit2 className="w-4 h-4 mr-2" />
                           Edit
@@ -282,9 +281,8 @@ export default function ProfilePage() {
                         <Button
                           onClick={handleShareCollection}
                           disabled={sharing}
-                          variant="outline"
+                          variant="brand"
                           size="sm"
-                          className="border-white/10"
                         >
                           {sharing ? (
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -296,9 +294,8 @@ export default function ProfilePage() {
                         <Button
                           onClick={() => handleExport('text')}
                           disabled={exporting}
-                          variant="outline"
+                          variant="brand"
                           size="sm"
-                          className="border-white/10"
                         >
                           <FileText className="w-4 h-4 mr-2" />
                           Export TXT
@@ -306,9 +303,8 @@ export default function ProfilePage() {
                         <Button
                           onClick={() => handleExport('markdown')}
                           disabled={exporting}
-                          variant="outline"
+                          variant="brand"
                           size="sm"
-                          className="border-white/10"
                         >
                           <Download className="w-4 h-4 mr-2" />
                           Export MD
@@ -345,7 +341,7 @@ export default function ProfilePage() {
                               <Button
                                 onClick={copyShareUrl}
                                 size="sm"
-                                className="bg-purple-600 hover:bg-purple-700"
+                                variant="brand"
                               >
                                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                               </Button>
@@ -445,7 +441,8 @@ export default function ProfilePage() {
             <Button
               onClick={handleCreateCollection}
               disabled={!newName.trim()}
-              className="w-full bg-purple-600 hover:bg-purple-700"
+              variant="brand"
+              className="w-full"
             >
               Create Collection
             </Button>
@@ -483,7 +480,8 @@ export default function ProfilePage() {
             <Button
               onClick={handleEditCollection}
               disabled={!newName.trim()}
-              className="w-full bg-purple-600 hover:bg-purple-700"
+              variant="brand"
+              className="w-full"
             >
               Save Changes
             </Button>

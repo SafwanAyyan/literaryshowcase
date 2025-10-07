@@ -6,7 +6,7 @@ import { BookOpen, Feather, Heart, Quote, Sparkles, ChevronDown, Library } from 
 import { Button } from "@/components/ui/button"
 import Link from 'next/link'
 import { Send } from 'lucide-react'
-import { GradientButton } from './ui/gradient-button'
+// Unified button style
 
 const floatingQuotes = [
   "Words have no single fixed meaning...",
@@ -236,15 +236,15 @@ export function EnhancedHeroSection() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.5 }}
           >
-            <Button
-              onClick={scrollToContent}
-              className="bg-gradient-to-r from-[#1e1e1f] to-[#2a0a37] hover:from-[#252526] hover:to-[#3a0f4d] text-white px-6 py-3 rounded-xl transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_12px_30px_rgba(0,0,0,0.35)]"
-            >
+            <Button onClick={scrollToContent} variant="brand" className="px-6 py-3">
               Explore Collection
             </Button>
             <div className="mt-3 flex justify-center">
               <Link href="/submit">
-                <GradientButton leftIcon={<Send className="w-4 h-4" />}>Submit Your Content</GradientButton>
+                <Button variant="brand">
+                  <Send className="w-4 h-4" />
+                  Submit Your Content
+                </Button>
               </Link>
             </div>
           </motion.div>

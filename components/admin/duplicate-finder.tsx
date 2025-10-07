@@ -112,7 +112,7 @@ export function DuplicateFinder() {
           <Button
             onClick={handleScan}
             disabled={scanning}
-            className="bg-purple-600 hover:bg-purple-700"
+            variant="brand"
           >
             {scanning ? (
               <>

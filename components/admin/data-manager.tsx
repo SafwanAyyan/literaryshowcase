@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
+import { Button } from '@/components/ui/button'
 import { Download, Upload, RefreshCw, Database, AlertTriangle, CheckCircle } from "lucide-react"
 import toast from 'react-hot-toast'
 
@@ -163,11 +164,7 @@ export function DataManager() {
         <p className="text-gray-300 mb-4">
           Download your content data as a JSON file for backup or migration purposes.
         </p>
-        <button
-          onClick={handleExport}
-          disabled={isExporting}
-          className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 text-white px-6 py-3 rounded-lg transition-all duration-300"
-        >
+        <Button onClick={handleExport} disabled={isExporting} variant="brand" className="px-6 py-3">
           {isExporting ? (
             <>
               <RefreshCw className="w-5 h-5 animate-spin" />
@@ -179,7 +176,7 @@ export function DataManager() {
               <span>Export Data</span>
             </>
           )}
-        </button>
+        </Button>
       </div>
 
       {/* Import Section */}
@@ -200,11 +197,7 @@ export function DataManager() {
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-purple-500 file:text-white hover:file:bg-purple-600 file:cursor-pointer cursor-pointer"
             />
           </div>
-          <button
-            onClick={handleImport}
-            disabled={!importFile || isImporting}
-            className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-all duration-300"
-          >
+          <Button onClick={handleImport} disabled={!importFile || isImporting} variant="brand" className="px-6 py-3">
             {isImporting ? (
               <>
                 <RefreshCw className="w-5 h-5 animate-spin" />
@@ -216,7 +209,7 @@ export function DataManager() {
                 <span>Import Data</span>
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
 

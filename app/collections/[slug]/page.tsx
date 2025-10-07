@@ -127,7 +127,7 @@ export default function SharedCollectionPage({
                 {error || 'This collection does not exist or is no longer available.'}
               </p>
               <Link href="/">
-                <Button className="bg-purple-600 hover:bg-purple-700">
+                <Button variant="brand">
                   Browse Collections
                 </Button>
               </Link>
@@ -186,9 +186,8 @@ export default function SharedCollectionPage({
               <div className="flex flex-wrap gap-2">
                 <Button
                   onClick={copyLink}
-                  variant="outline"
+                  variant="brand"
                   size="sm"
-                  className="border-white/10"
                 >
                   {copied ? (
                     <Check className="w-4 h-4 mr-2" />
@@ -199,18 +198,16 @@ export default function SharedCollectionPage({
                 </Button>
                 <Button
                   onClick={() => handleExport('text')}
-                  variant="outline"
+                  variant="brand"
                   size="sm"
-                  className="border-white/10"
                 >
                   <FileText className="w-4 h-4 mr-2" />
                   Export TXT
                 </Button>
                 <Button
                   onClick={() => handleExport('markdown')}
-                  variant="outline"
+                  variant="brand"
                   size="sm"
-                  className="border-white/10"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Export MD
@@ -274,7 +271,7 @@ export default function SharedCollectionPage({
                 Start organizing your favorite literary pieces
               </p>
               <Link href="/">
-                <Button className="bg-purple-600 hover:bg-purple-700">
+                <Button variant="brand">
                   Explore Literary Showcase
                 </Button>
               </Link>

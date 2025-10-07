@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react"
 import { motion } from "framer-motion"
 import { Upload, Clipboard, Copy, Send, Image as ImageIcon, X, CheckCircle, Loader2 } from "lucide-react"
+import { Button } from '@/components/ui/button'
 import toast from 'react-hot-toast'
 
 export function ImageToText() {
@@ -155,21 +156,14 @@ export function ImageToText() {
             <p className="text-white mb-4">Drag and drop an image here, or</p>
             
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
+              <Button onClick={() => fileInputRef.current?.click()} variant="brand">
                 <Upload className="w-4 h-4" />
-                <span>Choose File</span>
-              </button>
-              
-              <button
-                onClick={handlePaste}
-                className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
+                Choose File
+              </Button>
+              <Button onClick={handlePaste} variant="brand">
                 <Clipboard className="w-4 h-4" />
-                <span>Paste from Clipboard</span>
-              </button>
+                Paste from Clipboard
+              </Button>
             </div>
             
             <p className="text-gray-400 text-sm mt-4">
@@ -201,31 +195,23 @@ export function ImageToText() {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={extractText}
-                disabled={isProcessing}
-                className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-colors"
-              >
+              <Button onClick={extractText} disabled={isProcessing} variant="brand" className="px-6 py-3">
                 {isProcessing ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Extracting Text...</span>
+                    Extracting Text...
                   </>
                 ) : (
                   <>
                     <ImageIcon className="w-4 h-4" />
-                    <span>Extract Text</span>
+                    Extract Text
                   </>
                 )}
-              </button>
-              
-              <button
-                onClick={clearImage}
-                className="flex items-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-lg transition-colors"
-              >
+              </Button>
+              <Button onClick={clearImage} variant="brand" className="px-4 py-3">
                 <X className="w-4 h-4" />
-                <span>Clear</span>
-              </button>
+                Clear
+              </Button>
             </div>
           </div>
         )}
@@ -249,30 +235,23 @@ export function ImageToText() {
             />
             
             <div className="flex flex-col sm:flex-row gap-3 mt-4">
-              <button
-                onClick={copyToClipboard}
-                className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
+              <Button onClick={copyToClipboard} variant="brand">
                 {showCopySuccess ? (
                   <>
                     <CheckCircle className="w-4 h-4" />
-                    <span>Copied!</span>
+                    Copied!
                   </>
                 ) : (
                   <>
                     <Copy className="w-4 h-4" />
-                    <span>Copy Text</span>
+                    Copy Text
                   </>
                 )}
-              </button>
-              
-              <button
-                onClick={sendToContentManager}
-                className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
+              </Button>
+              <Button onClick={sendToContentManager} variant="brand">
                 <Send className="w-4 h-4" />
-                <span>Send to Content Manager</span>
-              </button>
+                Send to Content Manager
+              </Button>
             </div>
           </div>
         </motion.div>

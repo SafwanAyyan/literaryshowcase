@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { AlertCircle, Mail, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface SubmissionFallbackProps {
   onRetry?: () => void
@@ -22,13 +23,10 @@ export function SubmissionFallback({ onRetry }: SubmissionFallbackProps) {
       
       <div className="space-y-3">
         {onRetry && (
-          <button
-            onClick={onRetry}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
+          <Button onClick={onRetry} variant="brand" className="w-full font-semibold py-3 px-6 flex items-center justify-center gap-2">
             <RefreshCw className="w-4 h-4" />
             Try Again
-          </button>
+          </Button>
         )}
         
         <a

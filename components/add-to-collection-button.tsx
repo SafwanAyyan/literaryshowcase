@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { BookmarkPlus, Check, Plus } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -25,6 +26,7 @@ export function AddToCollectionButton({ contentId, compact = false }: AddToColle
   } = useCollections()
 
   const [open, setOpen] = useState(false)
+  const router = useRouter()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newCollectionName, setNewCollectionName] = useState('')
   const [newCollectionDescription, setNewCollectionDescription] = useState('')
@@ -45,7 +47,18 @@ export function AddToCollectionButton({ contentId, compact = false }: AddToColle
       toast.success('Removed from collection')
     } else {
       addToCollection(collectionId, contentId)
-      toast.success('Added to collection')
+      toast.custom((t) => (
+        <div className="flex items-center gap-3 px-4 py-3 bg-slate-900/95 border border-white/10 rounded-xl text-white shadow-lg">
+          <Check className="w-4 h-4 text-green-400" />
+          <span className="text-sm">Added to collection</span>
+          <button
+            onClick={() => { router.push('/profile'); toast.dismiss(t.id) }}
+            className="ml-2 px-2 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 border border-white/10"
+          >
+            Open
+          </button>
+        </div>
+      ), { duration: 4000 })
     }
   }
 
@@ -81,9 +94,9 @@ export function AddToCollectionButton({ contentId, compact = false }: AddToColle
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
-          variant="ghost"
           size={compact ? "sm" : "default"}
-          className={`gap-2 relative ${isInAnyCollection ? 'text-purple-400' : 'text-gray-300'} hover:text-purple-300`}
+          variant="brand"
+          className="gap-2 relative"
           onClick={(e) => e.stopPropagation()}
         >
           {isInAnyCollection ? (
@@ -115,7 +128,7 @@ export function AddToCollectionButton({ contentId, compact = false }: AddToColle
               </p>
               <Button
                 onClick={() => setShowCreateForm(true)}
-                className="bg-purple-600 hover:bg-purple-700"
+                variant="brand"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Create Your First Collection
@@ -156,7 +169,8 @@ export function AddToCollectionButton({ contentId, compact = false }: AddToColle
                 <Button
                   onClick={handleCreateAndAdd}
                   disabled={creating || !newCollectionName.trim()}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700"
+                  variant="brand"
+                  className="flex-1"
                 >
                   {creating ? 'Creating...' : 'Create & Add'}
                 </Button>
