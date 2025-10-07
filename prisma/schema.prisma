@@ -79,6 +79,55 @@ model ContentItem {
   @@index([views])
 }
 
+model AIDraft {
+  id                 String         @id @default(cuid())
+  content            String
+  author             String
+  source             String?
+  category           String
+  type               String
+  tags               String[]       @default([])
+  status             String         @default("pending")
+  theme              String?
+  tone               String?
+  writingMode        String?
+  prompt             String?
+  provider           String?
+  model              String?
+  metadata           Json?
+  reviewNotes        String?
+  createdBy          String?
+  createdByName      String?
+  reviewedBy         String?
+  reviewedByName     String?
+  publishedBy        String?
+  publishedByName    String?
+  publishedContentId String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  reviewStartedAt    DateTime?
+  reviewedAt         DateTime?
+  publishedAt        DateTime?
+  events             AIDraftEvent[]
+
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model AIDraftEvent {
+  id        String   @id @default(cuid())
+  draftId   String
+  action    String
+  actorId   String?
+  actorName String?
+  payload   Json?
+  createdAt DateTime @default(now())
+  draft     AIDraft  @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([draftId, createdAt])
+}
+
 model GenerationLog {
   id         String   @id @default(cuid())
   prompt     String

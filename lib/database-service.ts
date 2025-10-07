@@ -1,16 +1,85 @@
 import { prisma } from './prisma'
-import type { ContentItem as PrismaContentItem, Prisma } from '@prisma/client'
-import type { ContentItem, Category, OrderByOption } from '@/types/literary'
+import type {
+  ContentItem as PrismaContentItem,
+  Prisma,
+  AIDraft as PrismaAIDraft,
+  AIDraftEvent as PrismaAIDraftEvent,
+} from '@prisma/client'
+import type {
+  ContentItem,
+  Category,
+  OrderByOption,
+  AIDraftItem,
+  AIDraftStatus,
+  DraftEvent,
+} from '@/types/literary'
 import { CacheService } from './cache-service'
 
 // Transform Prisma model to our frontend type
+const parseContentTags = (value?: string | null): string[] =>
+  (value || '')
+    .split(',')
+    .map(tag => tag.trim())
+    .filter(Boolean)
+
+const serializeContentTags = (tags?: string[] | null): string | null => {
+  if (!tags || tags.length === 0) return null
+  const sanitized = tags.map(tag => tag.trim()).filter(Boolean)
+  return sanitized.length ? sanitized.join(',') : null
+}
+
+const shallowArrayEqual = (a: string[] = [], b: string[] = []): boolean => {
+  if (a.length !== b.length) return false
+  return a.every((value, index) => value === b[index])
+}
+
 const transformPrismaToContentItem = (item: PrismaContentItem): ContentItem => ({
   id: item.id,
   content: item.content,
   author: item.author,
   source: item.source || undefined,
   category: item.category as Category,
-  type: item.type as "quote" | "poem" | "reflection"
+  type: item.type as "quote" | "poem" | "reflection",
+  tags: parseContentTags(item.tags)
+})
+
+const transformDraft = (
+  draft: PrismaAIDraft & { events?: PrismaAIDraftEvent[] }
+): AIDraftItem => ({
+  id: draft.id,
+  content: draft.content,
+  author: draft.author,
+  source: draft.source || undefined,
+  category: draft.category as Category,
+  type: draft.type as "quote" | "poem" | "reflection",
+  tags: draft.tags || [],
+  status: draft.status as AIDraftStatus,
+  theme: draft.theme,
+  tone: draft.tone,
+  writingMode: (draft.writingMode as AIDraftItem['writingMode']) || undefined,
+  prompt: draft.prompt,
+  provider: draft.provider,
+  model: draft.model,
+  reviewNotes: draft.reviewNotes,
+  createdAt: draft.createdAt.toISOString(),
+  updatedAt: draft.updatedAt.toISOString(),
+  createdBy: draft.createdBy,
+  createdByName: draft.createdByName,
+  reviewedBy: draft.reviewedBy,
+  reviewedByName: draft.reviewedByName,
+  publishedBy: draft.publishedBy,
+  publishedByName: draft.publishedByName,
+  publishedAt: draft.publishedAt ? draft.publishedAt.toISOString() : undefined,
+  history: (draft.events || [])
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+    .map((event): DraftEvent => ({
+      id: event.id,
+      action: event.action,
+      actorId: event.actorId,
+      actorName: event.actorName,
+      payload: event.payload as Record<string, any> | null,
+      createdAt: event.createdAt.toISOString(),
+    })),
 })
 
 export class DatabaseService {
@@ -152,6 +221,7 @@ export class DatabaseService {
           source: data.source || null,
           category: data.category,
           type: data.type,
+          tags: serializeContentTags(data.tags),
           published: true
         }
       })
@@ -171,12 +241,13 @@ export class DatabaseService {
   static async updateContent(id: string, data: Partial<Omit<ContentItem, "id">>): Promise<ContentItem | null> {
     try {
       const updateData: Prisma.ContentItemUpdateInput = {}
-      
+
       if (data.content !== undefined) updateData.content = data.content
       if (data.author !== undefined) updateData.author = data.author
       if (data.source !== undefined) updateData.source = data.source || null
       if (data.category !== undefined) updateData.category = data.category
       if (data.type !== undefined) updateData.type = data.type
+      if (data.tags !== undefined) updateData.tags = serializeContentTags(data.tags)
 
       const item = await prisma.contentItem.update({
         where: { id },
@@ -239,6 +310,7 @@ export class DatabaseService {
         source: item.source || null,
         category: item.category,
         type: item.type,
+        tags: serializeContentTags(item.tags),
         published: true
       }))
 
@@ -719,9 +791,9 @@ export class DatabaseService {
 
   static async bulkImportSubmissions(submissions: any[]): Promise<number> {
     try {
-      const validSubmissions = submissions.filter(sub => 
-        sub.content && 
-        sub.author && 
+      const validSubmissions = submissions.filter(sub =>
+        sub.content &&
+        sub.author &&
         sub.category && 
         sub.type
       ).map(sub => ({
@@ -751,5 +823,311 @@ export class DatabaseService {
       console.error('Error bulk importing submissions:', error)
       throw error
     }
+  }
+
+  // ---- AI Draft Library helpers ------------------------------------------------
+
+  static async createDraftsFromGeneration(payload: {
+    items: Array<{ content: string; author: string; source?: string | null }>
+    category: Category
+    type: 'quote' | 'poem' | 'reflection'
+    theme?: string | null
+    tone?: string | null
+    writingMode?: 'known-writers' | 'original-ai'
+    prompt?: string | null
+    provider?: string | null
+    model?: string | null
+    metadata?: Record<string, any> | null
+    createdBy?: { id?: string | null; name?: string | null }
+    tags?: string[]
+  }): Promise<AIDraftItem[]> {
+    if (!payload.items?.length) return []
+
+    const tags = (payload.tags || []).map(tag => tag.trim()).filter(Boolean)
+    const metadata = payload.metadata ? JSON.parse(JSON.stringify(payload.metadata)) : null
+    const actorId = payload.createdBy?.id || null
+    const actorName = payload.createdBy?.name || null
+
+    const created = await prisma.$transaction(async (tx) => {
+      const records: Array<{ draft: PrismaAIDraft; events: PrismaAIDraftEvent[] }> = []
+
+      for (const [index, item] of payload.items.entries()) {
+        const draft = await tx.aIDraft.create({
+          data: {
+            content: item.content.trim(),
+            author: item.author.trim() || 'Anonymous',
+            source: item.source?.trim() || null,
+            category: payload.category,
+            type: payload.type,
+            tags,
+            status: 'pending',
+            theme: payload.theme || null,
+            tone: payload.tone || null,
+            writingMode: payload.writingMode || null,
+            prompt: payload.prompt || null,
+            provider: payload.provider || null,
+            model: payload.model || null,
+            metadata,
+            createdBy: actorId,
+            createdByName: actorName,
+          }
+        })
+
+        const event = await tx.aIDraftEvent.create({
+          data: {
+            draftId: draft.id,
+            action: 'generated',
+            actorId,
+            actorName,
+            payload: {
+              provider: payload.provider,
+              model: payload.model,
+              order: index,
+            }
+          }
+        })
+
+        records.push({ draft, events: [event] })
+      }
+
+      return records
+    })
+
+    return created.map(({ draft, events }) => transformDraft({ ...draft, events }))
+  }
+
+  static async listDrafts(options: {
+    status?: AIDraftStatus | 'all'
+    category?: Category | 'all'
+    tag?: string | null
+    provider?: string | 'all'
+    search?: string | null
+    page?: number
+    limit?: number
+  } = {}): Promise<{ items: AIDraftItem[]; total: number; page: number; pages: number }> {
+    const {
+      status = 'all',
+      category = 'all',
+      tag = null,
+      provider = 'all',
+      search = null,
+      page = 1,
+      limit = 20,
+    } = options
+
+    const where: Prisma.AIDraftWhereInput = {
+      AND: [
+        status !== 'all' ? { status } : {},
+        category !== 'all' ? { category } : {},
+        provider !== 'all' ? { provider } : {},
+        tag ? { tags: { has: tag } } : {},
+        search
+          ? {
+              OR: [
+                { content: { contains: search, mode: 'insensitive' } },
+                { author: { contains: search, mode: 'insensitive' } },
+                { reviewNotes: { contains: search, mode: 'insensitive' } },
+              ],
+            }
+          : {},
+      ],
+    }
+
+    const take = Math.max(1, Math.min(100, limit))
+    const currentPage = Math.max(1, page)
+    const skip = (currentPage - 1) * take
+
+    const [records, total] = await Promise.all([
+      prisma.aIDraft.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: {
+          events: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+          },
+        },
+      }),
+      prisma.aIDraft.count({ where }),
+    ])
+
+    return {
+      items: records.map(transformDraft),
+      total,
+      page: currentPage,
+      pages: Math.max(1, Math.ceil(total / take)),
+    }
+  }
+
+  static async updateDraft(
+    id: string,
+    data: {
+      content?: string
+      category?: Category
+      type?: 'quote' | 'poem' | 'reflection'
+      tags?: string[]
+      status?: AIDraftStatus
+      reviewNotes?: string | null
+    },
+    actor?: { id?: string | null; name?: string | null }
+  ): Promise<AIDraftItem | null> {
+    const existing = await prisma.aIDraft.findUnique({ where: { id } })
+    if (!existing) {
+      return null
+    }
+
+    const updateData: Prisma.AIDraftUpdateInput = {}
+    const changes: Record<string, { before: any; after: any }> = {}
+
+    if (data.content !== undefined && data.content !== existing.content) {
+      updateData.content = data.content.trim()
+      changes.content = { before: existing.content, after: data.content.trim() }
+    }
+    if (data.category && data.category !== existing.category) {
+      updateData.category = data.category
+      changes.category = { before: existing.category, after: data.category }
+    }
+    if (data.type && data.type !== existing.type) {
+      updateData.type = data.type
+      changes.type = { before: existing.type, after: data.type }
+    }
+    if (data.tags !== undefined) {
+      const sanitized = data.tags.map(tag => tag.trim()).filter(Boolean)
+      updateData.tags = { set: sanitized }
+      if (!shallowArrayEqual(sanitized, existing.tags)) {
+        changes.tags = { before: existing.tags, after: sanitized }
+      }
+    }
+    if (data.reviewNotes !== undefined && data.reviewNotes !== existing.reviewNotes) {
+      updateData.reviewNotes = data.reviewNotes || null
+      changes.reviewNotes = { before: existing.reviewNotes, after: data.reviewNotes || null }
+    }
+
+    if (data.status && data.status !== existing.status) {
+      updateData.status = data.status
+      changes.status = { before: existing.status, after: data.status }
+
+      if (data.status === 'in_review' && !existing.reviewStartedAt) {
+        updateData.reviewStartedAt = new Date()
+      }
+
+      if (data.status === 'approved' || data.status === 'needs_revision') {
+        updateData.reviewedAt = new Date()
+        updateData.reviewedBy = actor?.id || existing.reviewedBy
+        updateData.reviewedByName = actor?.name || existing.reviewedByName
+      }
+    }
+
+    if (Object.keys(changes).length === 0) {
+      const withEvents = await prisma.aIDraft.findUnique({
+        where: { id },
+        include: { events: { orderBy: { createdAt: 'desc' }, take: 5 } },
+      })
+      return withEvents ? transformDraft(withEvents) : null
+    }
+
+    const updated = await prisma.aIDraft.update({
+      where: { id },
+      data: updateData,
+      include: {
+        events: { orderBy: { createdAt: 'desc' }, take: 5 },
+      },
+    })
+
+    await prisma.aIDraftEvent.create({
+      data: {
+        draftId: id,
+        action: data.status && data.status !== existing.status ? 'status_changed' : 'updated',
+        actorId: actor?.id || null,
+        actorName: actor?.name || null,
+        payload: { changes },
+      },
+    })
+
+    return transformDraft(updated)
+  }
+
+  static async bulkPublishDrafts(
+    ids: string[],
+    actor?: { id?: string | null; name?: string | null }
+  ): Promise<{ published: number; items: ContentItem[] }> {
+    if (!ids?.length) return { published: 0, items: [] }
+
+    const drafts = await prisma.aIDraft.findMany({
+      where: { id: { in: ids } },
+    })
+
+    const publishable = drafts.filter(draft => draft.status === 'approved')
+    if (publishable.length === 0) {
+      return { published: 0, items: [] }
+    }
+
+    const createdItems: PrismaContentItem[] = []
+
+    await prisma.$transaction(async (tx) => {
+      for (const draft of publishable) {
+        const item = await tx.contentItem.create({
+          data: {
+            content: draft.content,
+            author: draft.author,
+            source: draft.source,
+            category: draft.category,
+            type: draft.type,
+            tags: draft.tags.length ? draft.tags.join(',') : null,
+            published: true,
+          },
+        })
+
+        await tx.aIDraft.update({
+          where: { id: draft.id },
+          data: {
+            publishedAt: new Date(),
+            publishedBy: actor?.id || null,
+            publishedByName: actor?.name || null,
+            publishedContentId: item.id,
+          },
+        })
+
+        await tx.aIDraftEvent.create({
+          data: {
+            draftId: draft.id,
+            action: 'published',
+            actorId: actor?.id || null,
+            actorName: actor?.name || null,
+            payload: { contentId: item.id },
+          },
+        })
+
+        createdItems.push(item)
+      }
+    })
+
+    if (createdItems.length) {
+      CacheService.invalidatePattern('content')
+      CacheService.invalidate('content-statistics')
+    }
+
+    return {
+      published: createdItems.length,
+      items: createdItems.map(transformPrismaToContentItem),
+    }
+  }
+
+  static async getDraftHistory(id: string): Promise<DraftEvent[]> {
+    const events = await prisma.aIDraftEvent.findMany({
+      where: { draftId: id },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    return events.map(event => ({
+      id: event.id,
+      action: event.action,
+      actorId: event.actorId,
+      actorName: event.actorName,
+      payload: event.payload as Record<string, any> | null,
+      createdAt: event.createdAt.toISOString(),
+    }))
   }
 }
