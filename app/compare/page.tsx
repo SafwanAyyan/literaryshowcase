@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect, useMemo } from 'react'
+export const dynamic = "force-dynamic"
+
+import { Suspense, useState, useEffect, useMemo } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
@@ -15,7 +17,7 @@ import { Navigation } from '@/components/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-export default function ComparePage() {
+function ComparePageInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const item1Id = searchParams.get('item1')
@@ -402,5 +404,27 @@ export default function ComparePage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ComparePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+          <Navigation />
+          <div className="container mx-auto px-4 py-24 max-w-4xl">
+            <div className="glass-card p-8 flex flex-col items-center gap-4 text-center">
+              <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+              <p className="text-gray-300 text-sm">
+                Preparing the comparison workspace…
+              </p>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <ComparePageInner />
+    </Suspense>
   )
 }
