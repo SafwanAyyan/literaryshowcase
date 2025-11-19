@@ -53,22 +53,30 @@ export class DatabaseService {
     return CacheService.getOrSet(cacheKey, async () => {
       const where: Prisma.ContentItemWhereInput = {
         published: true,
-        AND: [
-          category && category !== 'all' ? { category } : {},
-          author ? { author: { contains: author } } : {},
-          search
-            ? {
-                OR: [
-                  { content: { contains: search } },
-                  { author: { contains: search } },
-                  { source: { contains: search } },
-                ],
-              }
-            : {},
-        ],
+        ...(category && { category }),
+        ...(author && { author }),
+        ...(search && {
+          AND: search.split(/\s+/).filter(term => term.length > 1).map(term => ({
+            OR: [
+              { content: { contains: term, mode: 'insensitive' } },
+              { author: { contains: term, mode: 'insensitive' } },
+              { source: { contains: term, mode: 'insensitive' } },
+            ],
+          }))
+        }),
       }
 
-      let orderByClause: Prisma.ContentItemOrderByWithRelationInput
+      // Fallback for very short search terms that got filtered out
+      if (search && search.trim().length > 0 && (!where.AND || (where.AND as any[]).length === 0)) {
+        (where as any).OR = [
+          { content: { contains: search, mode: 'insensitive' } },
+          { author: { contains: search, mode: 'insensitive' } },
+          { source: { contains: search, mode: 'insensitive' } },
+        ]
+      }
+
+      let orderByClause: any = { createdAt: 'desc' }
+
       switch (orderBy) {
         case 'oldest':
           orderByClause = { createdAt: 'asc' }
@@ -120,7 +128,7 @@ export class DatabaseService {
         })
         const names = rows.map(r => r.author).filter(Boolean)
         // Replace 'Anonymous' for existing items with realistic names for display purposes only
-        const pool = ['Ava Thompson','Liam Carter','Noah Patel','Maya Reynolds','Ethan Brooks','Sofia Kim','Oliver Nguyen','Isabella Rossi','James Walker','Amelia Clark']
+        const pool = ['Ava Thompson', 'Liam Carter', 'Noah Patel', 'Maya Reynolds', 'Ethan Brooks', 'Sofia Kim', 'Oliver Nguyen', 'Isabella Rossi', 'James Walker', 'Amelia Clark']
         return names.map((n, i) => n === 'Anonymous' ? pool[i % pool.length] : n)
       } catch (error) {
         console.error('Error fetching authors:', error)
@@ -155,11 +163,11 @@ export class DatabaseService {
           published: true
         }
       })
-      
+
       // Invalidate content cache when new content is added
       CacheService.invalidatePattern('content')
       CacheService.invalidate('content-statistics')
-      
+
       return transformPrismaToContentItem(item)
     } catch (error) {
       console.error('Error adding content:', error)
@@ -171,7 +179,7 @@ export class DatabaseService {
   static async updateContent(id: string, data: Partial<Omit<ContentItem, "id">>): Promise<ContentItem | null> {
     try {
       const updateData: Prisma.ContentItemUpdateInput = {}
-      
+
       if (data.content !== undefined) updateData.content = data.content
       if (data.author !== undefined) updateData.author = data.author
       if (data.source !== undefined) updateData.source = data.source || null
@@ -182,11 +190,11 @@ export class DatabaseService {
         where: { id },
         data: updateData
       })
-      
+
       // Invalidate content cache when content is updated
       CacheService.invalidatePattern('content')
       CacheService.invalidate('content-statistics')
-      
+
       return transformPrismaToContentItem(item)
     } catch (error) {
       console.error('Error updating content:', error)
@@ -200,11 +208,11 @@ export class DatabaseService {
       await prisma.contentItem.delete({
         where: { id }
       })
-      
+
       // Invalidate content cache when content is deleted
       CacheService.invalidatePattern('content')
       CacheService.invalidate('content-statistics')
-      
+
       return true
     } catch (error) {
       console.error('Error deleting content:', error)
@@ -256,45 +264,15 @@ export class DatabaseService {
       // Invalidate content cache when bulk content is added
       CacheService.invalidatePattern('content')
       CacheService.invalidate('content-statistics')
-      
+
       return newItems.map(transformPrismaToContentItem)
     } catch (error) {
       console.error('Error bulk adding content:', error)
-      throw new Error('Failed to bulk add content')
-    }
-  }
-
-  // Search content
-  static async searchContent(query: string, category?: string): Promise<ContentItem[]> {
-    try {
-      const whereClause: Prisma.ContentItemWhereInput = {
-        published: true,
-        AND: [
-          category && category !== "all" ? { category } : {},
-          {
-            OR: [
-              { content: { contains: query } },
-              { author: { contains: query } },
-              { source: { contains: query } }
-            ]
-          }
-        ]
-      }
-
-      const items = await prisma.contentItem.findMany({
-        where: whereClause,
-        orderBy: { createdAt: 'desc' }
-      })
-
-      return items.map(transformPrismaToContentItem)
-    } catch (error) {
-      console.error('Error searching content:', error)
       return []
     }
   }
 
-  // Get statistics
-  // Get statistics (cached for performance)
+  // Get statistics (cached)
   static async getStatistics(): Promise<{
     total: number
     byCategory: Record<string, number>
@@ -361,10 +339,10 @@ export class DatabaseService {
           return acc
         }, {} as Record<string, number>)
 
-        return { 
-          total, 
-          byCategory, 
-          byType, 
+        return {
+          total,
+          byCategory,
+          byType,
           recentCount,
           totals: { likes: sumAgg._sum.likes || 0, views: sumAgg._sum.views || 0 },
           submissions: {
@@ -376,10 +354,10 @@ export class DatabaseService {
         }
       } catch (error) {
         console.error('Error getting statistics:', error)
-        return { 
-          total: 0, 
-          byCategory: {}, 
-          byType: {}, 
+        return {
+          total: 0,
+          byCategory: {},
+          byType: {},
           recentCount: 0,
           totals: { likes: 0, views: 0 },
           submissions: {
@@ -433,7 +411,7 @@ export class DatabaseService {
   static async seedInitialData(data: Omit<ContentItem, "id">[]): Promise<void> {
     try {
       const existingCount = await prisma.contentItem.count()
-      
+
       if (existingCount === 0) {
         const seedData = data.map(item => ({
           content: item.content,
@@ -461,7 +439,7 @@ export class DatabaseService {
       try {
         // Get all settings from database
         const settings = await prisma.adminSettings.findMany()
-        
+
         // Convert to key-value object
         const settingsObject = settings.reduce((acc, setting) => {
           acc[setting.key] = setting.value
@@ -505,7 +483,7 @@ export class DatabaseService {
 
         const allSettings = { ...defaultSettings, ...settingsObject }
         console.log(`[DatabaseService] Loaded settings: defaultAiProvider=${allSettings.defaultAiProvider}`)
-        
+
         return allSettings
       } catch (error) {
         console.error('Error fetching settings from database:', error)
@@ -550,7 +528,7 @@ export class DatabaseService {
         update: { value },
         create: { key, value }
       })
-      
+
       // Invalidate settings cache
       CacheService.invalidate('admin-settings')
     } catch (error) {
@@ -717,12 +695,32 @@ export class DatabaseService {
     }
   }
 
+  // Get random content item
+  static async getRandomContent(): Promise<ContentItem | null> {
+    try {
+      const count = await prisma.contentItem.count({ where: { published: true } })
+      if (count === 0) return null
+
+      const skip = Math.floor(Math.random() * count)
+      const items = await prisma.contentItem.findMany({
+        where: { published: true },
+        take: 1,
+        skip: skip
+      })
+
+      return items.length > 0 ? transformPrismaToContentItem(items[0]) : null
+    } catch (error) {
+      console.error('Error fetching random content:', error)
+      return null
+    }
+  }
+
   static async bulkImportSubmissions(submissions: any[]): Promise<number> {
     try {
-      const validSubmissions = submissions.filter(sub => 
-        sub.content && 
-        sub.author && 
-        sub.category && 
+      const validSubmissions = submissions.filter(sub =>
+        sub.content &&
+        sub.author &&
+        sub.category &&
         sub.type
       ).map(sub => ({
         content: sub.content.trim(),

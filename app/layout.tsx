@@ -6,13 +6,15 @@ import { RouteProgress } from '@/components/route-progress'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import RumReporter from '@/components/rum-reporter'
- 
+import JsonLd from '@/components/json-ld'
+import { AnalyticsTracker } from '@/components/analytics-tracker'
+
 export const metadata: Metadata = {
   title: 'Literary Showcase',
   description: 'A website for showcasing and collecting all sorts of literary writings. Made by Safwan and Fateen.',
   generator: 'Safwan and Fateen.',
 }
- 
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -35,6 +37,8 @@ html {
         <NextAuthProvider>
           <RouteProgress />
           <RumReporter sampleRate={0.2} />
+          <JsonLd />
+          <AnalyticsTracker />
           {/* Screen-reader live region for loading/toast announcements */}
           <div id="sr-status" aria-live="polite" aria-atomic="true" className="sr-only" />
           {children}
