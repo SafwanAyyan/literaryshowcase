@@ -51,20 +51,20 @@ export class UnifiedAIService {
     try {
       // Import DatabaseService dynamically to avoid circular imports
       const { DatabaseService } = await import('./database-service')
-      
+
       // Get settings directly from database instead of HTTP request
       const settings = await DatabaseService.getSettings()
-      
+
       if (settings) {
         // Per-use-case provider override
         const providerOverride =
           useCase === 'generate' ? (settings.aiGenerateProvider as AIProvider) :
-          useCase === 'findSource' ? (settings.aiFindSourceProvider as AIProvider) :
-          useCase === 'explain' ? (settings.aiExplainProvider as AIProvider) :
-          undefined
+            useCase === 'findSource' ? (settings.aiFindSourceProvider as AIProvider) :
+              useCase === 'explain' ? (settings.aiExplainProvider as AIProvider) :
+                undefined
 
         const provider = forcedProvider || providerOverride || (settings.defaultAiProvider as AIProvider) || 'openai'
-        
+
         const parsedTemp = settings.aiTemperature ? parseFloat(settings.aiTemperature) : undefined
         const parsedMax = settings.aiMaxTokens ? parseInt(settings.aiMaxTokens) : undefined
         const enableFallback = settings.aiEnableProviderFallback !== 'false'
@@ -84,8 +84,8 @@ export class UnifiedAIService {
           },
           gemini: {
             apiKey: settings.geminiApiKey || process.env.GEMINI_API_KEY || '',
-            model: geminiModelOverride || 'gemini-2.0-flash-thinking-exp-1219',  // Latest and best model
-            fallbackModel: 'gemini-2.0-flash-exp',
+            model: geminiModelOverride || 'gemini-2.5-flash',
+            fallbackModel: 'gemini-2.5-flash',
             maxTokens: parsedMax || 2000,
             temperature: typeof parsedTemp === 'number' ? parsedTemp : 0.9
           },
@@ -97,14 +97,14 @@ export class UnifiedAIService {
             temperature: typeof parsedTemp === 'number' ? parsedTemp : 0.8
           }
         }
-        
+
         console.log(`[UnifiedAI] Using provider: ${provider.toUpperCase()} with model: ${configs[provider].model}`)
         return { provider, config: configs[provider], enableFallback, settings }
       }
     } catch (error) {
       console.error('Failed to get provider settings from database:', error)
     }
-    
+
     // Environment-based fallback - only use providers with valid keys
     const availableProviders = [
       { provider: 'gemini' as AIProvider, key: process.env.GEMINI_API_KEY },
@@ -128,7 +128,7 @@ export class UnifiedAIService {
     }
 
     const fallbackProvider = forcedProvider || availableProviders[0].provider
-    
+
     const fallbackConfigs = {
       openai: {
         apiKey: process.env.OPENAI_API_KEY || '',
@@ -139,8 +139,8 @@ export class UnifiedAIService {
       },
       gemini: {
         apiKey: process.env.GEMINI_API_KEY || '',
-        model: 'gemini-2.0-flash-thinking-exp-1219',  // Best model for emotional content
-        fallbackModel: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash',
+        fallbackModel: 'gemini-2.5-flash',
         maxTokens: 2000,
         temperature: 0.9
       },
@@ -152,7 +152,7 @@ export class UnifiedAIService {
         temperature: 0.8
       }
     }
-    
+
     console.log(`[UnifiedAI] Environment fallback: Using ${fallbackProvider.toUpperCase()} (first available provider)`)
     return {
       provider: fallbackProvider,
@@ -160,46 +160,46 @@ export class UnifiedAIService {
       enableFallback: true
     }
   }
-/**
- * Expose active provider and resolved model for a given use case.
- * Useful for cache keying and metrics without duplicating selection logic.
- */
-static async getActiveModel(
-  useCase?: 'generate' | 'findSource' | 'explain' | 'analyze'
-): Promise<{ provider: AIProvider; model: string }> {
-  const { provider, config, settings } = await this.getCurrentProvider(undefined, useCase)
-  const override =
-    useCase === 'explain'
-      ? settings?.aiExplainModel
-      : useCase === 'analyze'
-      ? settings?.aiAnalyzeModel
-      : undefined
-  return { provider, model: (override || config.model) as string }
-}
-
-/**
- * Load system/base prompt for a use case from configuration store.
- * Falls back to sensible defaults if none are configured.
- */
-private static async getSystemPrompt(useCase: 'explain' | 'analyze'): Promise<string> {
-  try {
-    const { PromptService } = await import('./prompt-service')
-    const configured = await PromptService.getActivePrompt(useCase as any)
-    if (configured && configured.trim().length > 0) return configured.trim()
-  } catch {
-    // ignore; fall back to inline defaults
-  }
-  if (useCase === 'explain') {
-    return 'You are a helpful literary assistant. Provide a concise, faithful explanation that clearly answers the meaning behind each metaphor and how it supports the work’s themes. Structure responses with: Quoted metaphor, Meaning (emphasize), Context, and Theme connections with brief evidence. Keep total length reasonable.'
-  }
-  // analyze
-  return 'You are a precise literary analyst. Return only valid JSON and keep sections concise while faithful to the text.'
-}
-/**
-   * Extended system prompt loader that also supports 'generate' and 'findSource'.
-   * It first checks PromptService for an active prompt; if absent, returns opinionated defaults.
-   * Tokens supported in stored prompts: {{category}}, {{type}}, {{theme}}, {{tone}}, {{quantity}}, {{writingMode}}
+  /**
+   * Expose active provider and resolved model for a given use case.
+   * Useful for cache keying and metrics without duplicating selection logic.
    */
+  static async getActiveModel(
+    useCase?: 'generate' | 'findSource' | 'explain' | 'analyze'
+  ): Promise<{ provider: AIProvider; model: string }> {
+    const { provider, config, settings } = await this.getCurrentProvider(undefined, useCase)
+    const override =
+      useCase === 'explain'
+        ? settings?.aiExplainModel
+        : useCase === 'analyze'
+          ? settings?.aiAnalyzeModel
+          : undefined
+    return { provider, model: (override || config.model) as string }
+  }
+
+  /**
+   * Load system/base prompt for a use case from configuration store.
+   * Falls back to sensible defaults if none are configured.
+   */
+  private static async getSystemPrompt(useCase: 'explain' | 'analyze'): Promise<string> {
+    try {
+      const { PromptService } = await import('./prompt-service')
+      const configured = await PromptService.getActivePrompt(useCase as any)
+      if (configured && configured.trim().length > 0) return configured.trim()
+    } catch {
+      // ignore; fall back to inline defaults
+    }
+    if (useCase === 'explain') {
+      return 'You are a helpful literary assistant. Provide a concise, faithful explanation that clearly answers the meaning behind each metaphor and how it supports the work’s themes. Structure responses with: Quoted metaphor, Meaning (emphasize), Context, and Theme connections with brief evidence. Keep total length reasonable.'
+    }
+    // analyze
+    return 'You are a precise literary analyst. Return only valid JSON and keep sections concise while faithful to the text.'
+  }
+  /**
+     * Extended system prompt loader that also supports 'generate' and 'findSource'.
+     * It first checks PromptService for an active prompt; if absent, returns opinionated defaults.
+     * Tokens supported in stored prompts: {{category}}, {{type}}, {{theme}}, {{tone}}, {{quantity}}, {{writingMode}}
+     */
   private static async getSystemPromptExtended(
     useCase: 'explain' | 'analyze' | 'generate' | 'findSource'
   ): Promise<string> {
@@ -501,9 +501,9 @@ TEXT:\n"""\n${content}\n"""`
 
       if (!config.apiKey || config.apiKey.length < 10) {
         console.warn(`[UnifiedAI] No valid API key configured for ${provider}`)
-        return { 
-          author: "Configuration needed", 
-          source: `${provider.toUpperCase()} API key required` 
+        return {
+          author: "Configuration needed",
+          source: `${provider.toUpperCase()} API key required`
         }
       }
 
@@ -557,24 +557,24 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
         return parsed
       } catch (providerError: any) {
         console.error(`[UnifiedAI] ${provider.toUpperCase()} failed:`, providerError.message)
-        
+
         // Try to switch to a different provider as fallback
         const fallbackProvider = provider === 'openai' ? 'gemini' : 'openai'
         const fallbackKey = fallbackProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GEMINI_API_KEY
-        
+
         if (fallbackKey && fallbackKey.length > 10) {
           console.log(`[UnifiedAI] Trying fallback provider: ${fallbackProvider.toUpperCase()}`)
-          
+
           try {
             const fallbackConfig = {
               apiKey: fallbackKey,
-              model: fallbackProvider === 'openai' ? 'gpt-4o' : 'gemini-2.5-pro',
-              fallbackModel: fallbackProvider === 'openai' ? 'gpt-3.5-turbo' : 'gemini-2.0-flash-exp',
+              model: fallbackProvider === 'openai' ? 'gpt-4o' : 'gemini-2.5-flash',
+              fallbackModel: fallbackProvider === 'openai' ? 'gpt-3.5-turbo' : 'gemini-2.5-flash',
               maxTokens: 2000,
               temperature: 0.8
             }
 
-            const fallbackResult = fallbackProvider === 'openai' 
+            const fallbackResult = fallbackProvider === 'openai'
               ? await this.callOpenAI(fallbackConfig, enhancedPrompt)
               : await this.callGemini(fallbackConfig, enhancedPrompt)
 
@@ -586,16 +586,16 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
           }
         }
 
-        return { 
-          author: "Unable to determine", 
-          source: `${provider.toUpperCase()} service unavailable` 
+        return {
+          author: "Unable to determine",
+          source: `${provider.toUpperCase()} service unavailable`
         }
       }
     } catch (error: any) {
       console.error('[UnifiedAI] Critical error in findSourceInfo:', error)
-      return { 
-        author: "System error", 
-        source: "Please check configuration and try again" 
+      return {
+        author: "System error",
+        source: "Please check configuration and try again"
       }
     }
   }
@@ -635,7 +635,7 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
         messages: [{ role: 'user', content: 'Test connection' }],
         max_tokens: 5
       })
-      
+
       if (response.choices?.[0]?.message?.content) {
         return { success: true, message: 'OpenAI connection successful!' }
       }
@@ -651,10 +651,10 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
   private static async testGemini(apiKey: string): Promise<{ success: boolean; message: string }> {
     try {
       const client = new GoogleGenerativeAI(apiKey)
-      const model = client.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
+      const model = client.getGenerativeModel({ model: 'gemini-2.5-flash' })
       const result = await model.generateContent('Test connection')
       const response = result.response
-      
+
       if (response.text()) {
         return { success: true, message: 'Gemini connection successful!' }
       }
@@ -692,9 +692,9 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
         return { success: false, message: 'DeepSeek connection failed - no response' }
       } else {
         const errorData = await response.json().catch(() => ({}))
-        return { 
-          success: false, 
-          message: `DeepSeek error: ${response.status} ${errorData.error?.message || response.statusText}` 
+        return {
+          success: false,
+          message: `DeepSeek error: ${response.status} ${errorData.error?.message || response.statusText}`
         }
       }
     } catch (error: any) {
@@ -715,7 +715,7 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
   /**
     * Generate content using the selected AI provider
     */
-   static async generateContent(params: GenerationParameters, options?: { provider?: AIProvider }): Promise<GeneratedContent[]> {
+  static async generateContent(params: GenerationParameters, options?: { provider?: AIProvider }): Promise<GeneratedContent[]> {
     const attemptedProviders = new Set<AIProvider>()
     const basePrompt = await this.getSystemPromptExtended('generate').catch(() => '')
     const overrideText = await getCategoryOverride(params.category as any).catch(
@@ -782,7 +782,7 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
 
       pushUnique(options?.provider as AIProvider | undefined)
       pushUnique((settings?.defaultAiProvider as AIProvider) || undefined)
-      ;(['openai', 'gemini', 'deepseek'] as AIProvider[]).forEach(pushUnique)
+        ; (['openai', 'gemini', 'deepseek'] as AIProvider[]).forEach(pushUnique)
 
       for (const fallbackProvider of preferenceOrder) {
         if (attemptedProviders.has(fallbackProvider)) continue
@@ -800,8 +800,8 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
           typeof parsedTemp === 'number' && !Number.isNaN(parsedTemp)
             ? parsedTemp
             : fallbackProvider === 'deepseek'
-            ? 0.8
-            : 0.9
+              ? 0.8
+              : 0.9
 
         const fallbackConfig: ProviderConfig = {
           apiKey,
@@ -810,8 +810,8 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
             (fallbackProvider === 'openai'
               ? 'gpt-4o'
               : fallbackProvider === 'gemini'
-              ? 'gemini-2.5-pro'
-              : 'deepseek-chat-v3'),
+                ? 'gemini-2.5-pro'
+                : 'deepseek-chat-v3'),
           maxTokens: maxTokensValue,
           temperature: temperatureValue,
         }
@@ -852,7 +852,7 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
    */
   private static async callOpenAI(config: ProviderConfig, prompt: string) {
     const client = this.getOpenAIClient(config.apiKey)
-    
+
     const completion = await client.chat.completions.create({
       model: config.model,
       messages: [
@@ -885,10 +885,12 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
       },
     })
 
-    const result = await model.generateContent([
-      "You are a literary and cultural expert. Return only valid JSON format.",
-      prompt
-    ])
+    const result = await model.generateContent({
+      contents: [{
+        role: 'user',
+        parts: [{ text: `You are a literary and cultural expert. Return only valid JSON format.\n\n${prompt}` }]
+      }],
+    })
 
     const text = typeof result?.response?.text === 'function' ? result.response.text() : ''
     if (!text || !text.trim()) {
@@ -955,39 +957,39 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
   private static parseSourceResponse(response: string): SourceInfo {
     try {
       let cleanResponse = response.trim()
-      
+
       // Extract JSON from response
       const jsonStart = cleanResponse.indexOf('{')
       const jsonEnd = cleanResponse.lastIndexOf('}')
-      
+
       if (jsonStart !== -1 && jsonEnd !== -1) {
         cleanResponse = cleanResponse.substring(jsonStart, jsonEnd + 1)
       }
-      
+
       const parsed = JSON.parse(cleanResponse)
-      
+
       // Handle enhanced response format with confidence levels
       const author = parsed.author || 'Unknown'
       const source = parsed.source || undefined
       const confidence = parsed.confidence || 'medium'
-      
+
       // Be more conservative with uncertain results
-      if (confidence === 'low' || 
-          author.toLowerCase().includes('unknown') || 
-          author.toLowerCase().includes('uncertain') || 
-          author.toLowerCase().includes('apocryphal') ||
-          author.toLowerCase().includes('often attributed') ||
-          author.toLowerCase().includes('misattributed')) {
+      if (confidence === 'low' ||
+        author.toLowerCase().includes('unknown') ||
+        author.toLowerCase().includes('uncertain') ||
+        author.toLowerCase().includes('apocryphal') ||
+        author.toLowerCase().includes('often attributed') ||
+        author.toLowerCase().includes('misattributed')) {
         return {
           author: 'Unknown',
           source: undefined
         }
       }
-      
+
       // Add confidence indicator to source if available
-      const enhancedSource = source && confidence !== 'medium' ? 
+      const enhancedSource = source && confidence !== 'medium' ?
         `${source} (${confidence} confidence)` : source
-      
+
       return {
         author,
         source: enhancedSource
@@ -1009,11 +1011,11 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
   private static parseGenerationResponse(response: string, params: GenerationParameters): GeneratedContent[] {
     try {
       let cleanResponse = response.trim()
-      
+
       // Extract JSON from response
       const jsonStart = cleanResponse.indexOf('{')
       const jsonArrayStart = cleanResponse.indexOf('[')
-      
+
       if (jsonStart !== -1 && (jsonArrayStart === -1 || jsonStart < jsonArrayStart)) {
         const jsonEnd = cleanResponse.lastIndexOf('}')
         if (jsonEnd !== -1) {
@@ -1025,7 +1027,7 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
           cleanResponse = cleanResponse.substring(jsonArrayStart, jsonEnd + 1)
         }
       }
-      
+
       const parsed = JSON.parse(cleanResponse)
       const items = parsed.items || parsed
 
@@ -1056,7 +1058,9 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
 
           const generatedItem: GeneratedContent = {
             content,
-            author: this.generateVariedAuthor(params.type, params.category, index, params.writingMode),
+            author: (params.writingMode === 'known-writers' && item.author?.trim())
+              ? item.author.trim()
+              : this.generateVariedAuthor(params.type, params.category, index, params.writingMode),
             source: item.source || undefined,
             category: params.category,
             type: params.type
@@ -1098,11 +1102,11 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
     if (basePrompt && basePrompt.trim().length > 0) {
       systemPrompt += tokenize(basePrompt.trim()) + '\n\n'
     }
- 
+
     // If an admin base prompt already carries strong guidance, add a compact
     // constraint layer to avoid over-constraining the model and lowering quality.
     const compact = (basePrompt?.trim().length || 0) > 600
- 
+
     // Core generation template with strict uniqueness and human cadence constraints
     systemPrompt += compact
       ? `Compose ${quantity} distinct ${type}(s) in a ${tone} tone for "${category}".
@@ -1139,13 +1143,13 @@ UNIQUENESS GUARANTEES:
  
  WRITING MODE RULES:
  ${writingMode === 'known-writers'
-   ? compact
-     ? `- Emulate general techniques of renowned authors without naming or quoting.`
-     : `- Emulate the general techniques of renowned authors in this genre without naming or directly quoting them.
+        ? compact
+          ? `- Emulate general techniques of renowned authors without naming or quoting.`
+          : `- Emulate the general techniques of renowned authors in this genre without naming or directly quoting them.
 - Mirror high-level stylistic traits (syntax, pacing, imagery strategies) without imitation of specific passages.`
-   : compact
-     ? `- Produce wholly original work; do not imitate or reference specific authors or lines.`
-     : `- Produce wholly original work from your own understanding and creativity.
+        : compact
+          ? `- Produce wholly original work; do not imitate or reference specific authors or lines.`
+          : `- Produce wholly original work from your own understanding and creativity.
 - Do not imitate, reference, or hint at specific authors or famous lines.`}
 - Do NOT include author names in content; attribution is handled separately.
 
@@ -1192,7 +1196,7 @@ CATEGORY OVERRIDE:
 ${overrideText.trim()}
 `
     }
- 
+
     if (tone.toLowerCase().includes('inspirational')) {
       systemPrompt += compact
         ? `\nTONE (Inspirational): Earn uplift; transform pain into clarity and agency; avoid sermon.`
@@ -1248,7 +1252,7 @@ FINAL SAFETY/QUALITY CHECK:
     if (writingMode === 'original-ai') {
       return 'Anonymous'
     }
-    
+
     // For Known Writers mode, use actual author names based on category
     const knownWritersAuthorPools = {
       'found-made': [
@@ -1282,7 +1286,7 @@ FINAL SAFETY/QUALITY CHECK:
         'Emily Dickinson', 'Elizabeth Bishop', 'Adrienne Rich'
       ]
     }
-    
+
     // Use the established author pool for known writers mode
     const pool = knownWritersAuthorPools[category as keyof typeof knownWritersAuthorPools] || knownWritersAuthorPools['found-made']
     const randomIndex = (index + Math.floor(Date.now() / 1000)) % pool.length
@@ -1313,28 +1317,94 @@ FINAL SAFETY/QUALITY CHECK:
    * Get fallback content when AI fails
    */
   private static getFallbackContent(params: GenerationParameters): GeneratedContent[] {
+    const fallbackQuotes = [
+      "The journey of discovery begins with a single question.",
+      "Every ending carries within it the seed of a new beginning.",
+      "Silence teaches what noise cannot — listen to the pauses between your thoughts.",
+      "The bravest thing you can do is remain tender in a world that rewards armor.",
+      "We do not grow when things are easy; we grow when we face what we thought we could not.",
+      "Time does not heal; it teaches us how to carry what once felt impossible.",
+      "The truest form of strength is the gentleness we extend to ourselves.",
+      "What you seek is also seeking you — be still long enough to let it arrive.",
+      "The wound is where the light enters, but only if we leave it open.",
+      "Every person you meet is fighting a battle you know nothing about — lead with grace.",
+      "Clarity rarely arrives in noise; it waits patiently in the quiet corners of your attention.",
+      "The most profound truths are often the simplest ones we keep overlooking.",
+      "If you want to understand life, look at how water moves — always forward, always adapting.",
+      "Freedom is not the absence of constraint, but the courage to choose what matters.",
+      "Some doors close so quietly, you only notice when the draft stops.",
+      "The art of living is knowing which bridges to cross and which to burn.",
+      "Not all storms come to disrupt your life; some come to clear your path.",
+      "Wisdom is the residue of paying attention to your own mistakes.",
+      "The universe speaks in whispers before it shouts — learn to listen early.",
+      "You are not behind; you are exactly where your unique path requires you to be.",
+    ]
+    const fallbackPoems = [
+      "In quiet moments of the day,\nWhen thoughts have room to breathe and play,\nI find the truths that matter most\nAre simple gifts, not things to boast.",
+      "The river does not ask\nwhere it is going.\nIt simply moves,\ncarrying the sky on its back,\nturning stones into songs.",
+      "I held a candle to the dark\nand watched the shadows rearrange.\nNothing vanished —\nbut everything changed.",
+      "There is a language older than words,\nspoken by the wind through empty rooms,\nby the way a door remembers\nthe hand that closed it last.",
+      "We are all just walking\neach other home,\nthrough hallways\nlit by someone else's kindness,\nwarmed by fires\nwe did not start.",
+      "Morning arrives\nlike an apology —\nsoft, tentative,\noffering light\nwithout condition.",
+      "The trees know something\nwe keep forgetting:\nhow to let go\nwithout losing\nwho they are.",
+      "I have learned\nthat grief is just love\nwith nowhere to go,\nso I plant it\nand watch what grows.",
+      "Some silences\nare louder than any word,\nfull of everything\nwe meant to say\nbut couldn't.",
+      "Between the thunder\nand the rain,\nthere is a breath —\nthat is where\ncourage lives.",
+      "You asked me\nwhat I was afraid of.\nI said: becoming\nthe person who stops\nasking questions.",
+      "Autumn does not mourn\nits falling leaves;\nit trusts the spring\nit cannot see.",
+      "I found a poem\nhiding in the cracks\nof the sidewalk,\nin the space between\nwhat happened and what I hoped.",
+      "Stars are just scars\nin the dark —\nproof that even the sky\nhas broken open,\nand still shines.",
+      "The ocean taught me patience:\nhow to hold immensity\nand still be gentle\nwith the shore.",
+      "I wrote my name\nin water once.\nIt disappeared,\nbut the river\nremembered.",
+      "We carry maps\nto places that no longer exist,\nand call it memory.\nWe trace the roads\nand call it love.",
+      "Light does not argue\nwith darkness.\nIt simply arrives\nand the room\nreintroduces itself.",
+      "The clock on the wall\nsays one thing.\nThe ache in my chest\nsays another.\nTime is unreliable\nlike that.",
+      "I am learning\nto be the pause\nbetween the notes —\nthe silence\nthat makes the music whole.",
+    ]
+    const fallbackReflections = [
+      "There's something profound about the way life unfolds in unexpected directions. Each twist and turn teaches us that our greatest growth often comes not from the destinations we planned, but from the detours we never saw coming.",
+      "We spend so much time building walls to protect ourselves that we forget — the same walls keep out the light. Vulnerability is not weakness; it is the only accurate way to measure courage.",
+      "The moments that define us are rarely the ones we prepare for. They arrive unannounced, disguised as ordinary Tuesdays, and leave us permanently rearranged.",
+      "Perhaps the most radical act of self-love is allowing yourself to be a beginner again. Expertise is comfortable, but growth lives in the awkward space of not-knowing.",
+      "We carry our past like luggage through airports — heavy, familiar, and filled with things we packed for a trip we are no longer taking. Sometimes the bravest thing is to set it down.",
+      "There is a kind of loneliness that has nothing to do with being alone. It lives in crowded rooms and busy schedules, in the gap between who we are and who we pretend to be.",
+      "Children understand something adults forget: that wonder is not a luxury but a necessity. Without it, knowledge becomes a cage rather than wings.",
+      "Forgiveness is not about the other person. It is about refusing to carry someone else's fire in your own chest. It is the quiet decision to stop burning yourself.",
+      "The difference between surviving and living is attention. Survival is mechanical; living requires you to notice the taste of the coffee, the angle of the light, the sound of your own name.",
+      "We measure time in clocks and calendars, but the body keeps its own record — in the stiffness of joints, the depth of laugh lines, the way certain songs make us ache for rooms we will never enter again.",
+      "Empathy is not agreeing with someone. It is the willingness to stand in a place you have never been and try to see what they see, even when the view is unfamiliar.",
+      "What we call 'failure' is often just information arriving in a costume we did not expect. Strip away the disappointment, and you will usually find a lesson wearing a disguise.",
+      "Patience is not passive waiting. It is the active trust that what is meant for you will find its way — not on your schedule, but on a timeline wiser than your anxiety.",
+      "The greatest conversations are the ones where silence does most of the talking. Two people sitting together, comfortable enough to let the quiet say what words cannot.",
+      "We often mistake motion for progress. But a hamster on a wheel is very busy going nowhere. Stillness, sometimes, is the most productive thing you can do.",
+      "Home is not always a place. Sometimes it is a person, a song, or a time of day. Sometimes it is the version of yourself you were before the world taught you to be someone else.",
+      "Grief and gratitude are not opposites. They are neighbors, sharing a thin wall. You can hear one through the other, and that is exactly as it should be.",
+      "The things that scare us most are usually the things most worth doing. Not because they are dangerous, but because they require us to become someone we have not been yet.",
+      "Kindness is not naive. It is the most sophisticated response to a complicated world. It requires more strength than cynicism and more intelligence than sarcasm.",
+      "Every person walking by you on the street is carrying a novel in their chest — a story with plot twists, heartbreak, and moments of breathtaking beauty you will never read.",
+    ]
+
     const generatedItems: GeneratedContent[] = []
-    
+
     for (let i = 0; i < params.quantity; i++) {
       let content: string
-      
+
       switch (params.type) {
         case 'quote':
-          content = "The journey of discovery begins with a single question."
+          content = fallbackQuotes[i % fallbackQuotes.length]
           break
         case 'poem':
-          content = "In quiet moments of the day,\nWhen thoughts have room to breathe and play,\nI find the truths that matter most\nAre simple gifts, not things to boast."
+          content = fallbackPoems[i % fallbackPoems.length]
           break
         case 'reflection':
-          content = "There's something profound about the way life unfolds in unexpected directions. Each twist and turn teaches us that our greatest growth often comes not from the destinations we planned, but from the detours we never saw coming."
+          content = fallbackReflections[i % fallbackReflections.length]
           break
         default:
-          content = "Wisdom whispers where knowledge shouts."
+          content = fallbackQuotes[i % fallbackQuotes.length]
       }
-      
-      // Use the same author generation logic as the main function
+
       const author = this.generateVariedAuthor(params.type, params.category, i, params.writingMode || 'original-ai')
-      
+
       generatedItems.push({
         content,
         author,
@@ -1342,7 +1412,7 @@ FINAL SAFETY/QUALITY CHECK:
         type: params.type
       })
     }
-    
+
     return generatedItems
   }
 

@@ -21,10 +21,10 @@ interface GeneratedContent {
 
 const geminiConfig = {
   apiKey: process.env.GEMINI_API_KEY || '',
-  // Use widely-available stable models
-  model: 'gemini-1.5-flash',
-  proModel: 'gemini-1.5-pro',
-  fallbackModel: 'gemini-1.5-flash',
+  // Use current stable models
+  model: 'gemini-2.5-flash',
+  proModel: 'gemini-2.5-pro',
+  fallbackModel: 'gemini-2.5-flash',
   temperature: 0.8,
   maxOutputTokens: 2000,
 }
@@ -45,14 +45,14 @@ export class GeminiService {
   static async generateContent(params: GenerationParameters): Promise<GeneratedContent[]> {
     try {
       const client = this.getClient()
-      const model = client.getGenerativeModel({ 
+      const model = client.getGenerativeModel({
         model: geminiConfig.model,
         generationConfig: {
           temperature: geminiConfig.temperature,
           maxOutputTokens: geminiConfig.maxOutputTokens,
         }
       })
-      
+
       const prompt = this.buildPrompt(params)
 
       const result = await model.generateContent(prompt)
@@ -67,11 +67,11 @@ export class GeminiService {
       try {
         // Try to extract JSON from the response if it's wrapped in other text
         let cleanResponse = text.trim()
-        
+
         // Look for JSON object/array in the response
         const jsonStart = cleanResponse.indexOf('{')
         const jsonArrayStart = cleanResponse.indexOf('[')
-        
+
         if (jsonStart !== -1 && (jsonArrayStart === -1 || jsonStart < jsonArrayStart)) {
           // JSON object found
           const jsonEnd = cleanResponse.lastIndexOf('}')
@@ -85,7 +85,7 @@ export class GeminiService {
             cleanResponse = cleanResponse.substring(jsonArrayStart, jsonEnd + 1)
           }
         }
-        
+
         parsedResponse = JSON.parse(cleanResponse)
       } catch (parseError) {
         console.error('Failed to parse Gemini response:', text)
@@ -326,7 +326,7 @@ TEXT:\n"""\n${content}\n"""`
   /**
    * Classify content into site categories and type using a stable model.
    */
-  static async classifyContent(content: string): Promise<{ category: string; type: 'quote'|'poem'|'reflection' }> {
+  static async classifyContent(content: string): Promise<{ category: string; type: 'quote' | 'poem' | 'reflection' }> {
     const client = this.getClient()
     const model = client.getGenerativeModel({ model: geminiConfig.proModel })
     const schema: any = {
@@ -356,7 +356,7 @@ TEXT:\n"""\n${content}\n"""`
     try {
       const obj = JSON.parse((text || '').trim())
       const cat = categories.includes(obj.category) ? obj.category : 'found-made'
-      const typ = (['quote','poem','reflection'] as const).includes(obj.type) ? obj.type : 'quote'
+      const typ = (['quote', 'poem', 'reflection'] as const).includes(obj.type) ? obj.type : 'quote'
       return { category: cat, type: typ as any }
     } catch {
       return { category: 'found-made', type: 'quote' }
@@ -365,9 +365,9 @@ TEXT:\n"""\n${content}\n"""`
 
   private static buildPrompt(params: GenerationParameters): string {
     const { category, type, theme, tone, quantity } = params
-    
+
     let basePrompt = `Generate ${quantity} high-quality ${type}s in a ${tone} tone`
-    
+
     if (theme) {
       basePrompt += ` about ${theme}`
     }
@@ -390,6 +390,9 @@ TEXT:\n"""\n${content}\n"""`
         break
       case 'original-poetry':
         basePrompt += 'These should be original poems with emotional depth, vivid imagery, and meaningful themes.'
+        break
+      case 'heartbreak':
+        basePrompt += 'These should capture the exquisite honesty of loss, longing, and the world recolored by absence. Focus on raw emotional truth without melodrama.'
         break
     }
 
@@ -432,7 +435,7 @@ TEXT:\n"""\n${content}\n"""`
     if (writingMode === 'original-ai') {
       return 'Anonymous'
     }
-    
+
     if (suggestedAuthor && suggestedAuthor.trim()) {
       return suggestedAuthor.trim()
     }
@@ -454,10 +457,10 @@ TEXT:\n"""\n${content}\n"""`
     try {
       const client = this.getClient()
       const model = client.getGenerativeModel({ model: geminiConfig.fallbackModel })
-      
+
       const result = await model.generateContent("Say 'Gemini connection successful'")
       const response = result.response.text()
-      
+
       return {
         success: response?.includes('successful') || false,
         message: response || 'No response received'
@@ -476,14 +479,14 @@ TEXT:\n"""\n${content}\n"""`
   static async findSourceInfo(content: string): Promise<{ author: string; source?: string }> {
     try {
       const client = this.getClient()
-      const model = client.getGenerativeModel({ 
+      const model = client.getGenerativeModel({
         model: geminiConfig.model,
         generationConfig: {
           temperature: 0.3, // Lower temperature for more accurate results
           maxOutputTokens: 200
         }
       })
-      
+
       const prompt = `Analyze this text and identify its author and source:
 
 "${content}"
@@ -508,15 +511,15 @@ Be accurate and only provide information you're confident about. Return ONLY the
       let parsedResponse
       try {
         let cleanResponse = response.trim()
-        
+
         // Look for JSON object in the response
         const jsonStart = cleanResponse.indexOf('{')
         const jsonEnd = cleanResponse.lastIndexOf('}')
-        
+
         if (jsonStart !== -1 && jsonEnd !== -1) {
           cleanResponse = cleanResponse.substring(jsonStart, jsonEnd + 1)
         }
-        
+
         parsedResponse = JSON.parse(cleanResponse)
       } catch (parseError) {
         console.error('Failed to parse source lookup response:', response)
