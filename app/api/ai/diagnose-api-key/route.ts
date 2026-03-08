@@ -77,7 +77,7 @@ async function testAIStudio(apiKey: string) {
   try {
     const { GoogleGenerativeAI } = await import('@google/generative-ai')
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
 
     // Simple test prompt
     const result = await model.generateContent("Say 'test'")
@@ -88,7 +88,7 @@ async function testAIStudio(apiKey: string) {
       success: true,
       service: 'Google AI Studio',
       endpoint: 'generativelanguage.googleapis.com',
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       response: text?.toLowerCase().includes('test') ? 'Valid response' : 'Unexpected response'
     }
   } catch (error: any) {
@@ -105,7 +105,7 @@ async function testCloudVision(apiKey: string) {
   try {
     // Test Cloud Vision API with a simple request
     const testUrl = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`
-    
+
     const response = await fetch(testUrl, {
       method: 'POST',
       headers: {

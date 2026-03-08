@@ -69,7 +69,7 @@ When discussing your works, focus on the psychological depth, moral questions, a
 
   const testAuthorChat = async (authorId: string) => {
     setTesting(authorId)
-    
+
     try {
       const response = await fetch('/api/ai/chat/author', {
         method: 'POST',
@@ -84,7 +84,7 @@ When discussing your works, focus on the psychological depth, moral questions, a
       })
 
       const data = await response.json()
-      
+
       if (data.success) {
         toast.success(`${authors.find(a => a.id === authorId)?.name} chat test successful!`)
       } else {
@@ -99,8 +99,8 @@ When discussing your works, focus on the psychological depth, moral questions, a
   }
 
   const startEditingPrompt = (authorId: string) => {
-    const currentPrompt = settings[`authorChatPrompt_${authorId}`] || 
-                         authors.find(a => a.id === authorId)?.defaultPrompt || ''
+    const currentPrompt = settings[`authorChatPrompt_${authorId}`] ||
+      authors.find(a => a.id === authorId)?.defaultPrompt || ''
     setTempPrompts({ ...tempPrompts, [authorId]: currentPrompt })
     setEditingPrompt(authorId)
   }
@@ -141,14 +141,14 @@ When discussing your works, focus on the psychological depth, moral questions, a
           const isEditing = editingPrompt === author.id
           const currentPrompt = settings[`authorChatPrompt_${author.id}`] || author.defaultPrompt
           const isTesting = testing === author.id
-          
+
           return (
             <Card key={author.id} className="glass-card border-white/10">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <img 
-                      src={author.avatar} 
+                    <img
+                      src={author.avatar}
                       alt={author.name}
                       className="w-12 h-12 rounded-full object-cover border-2 border-white/20"
                     />
@@ -159,7 +159,7 @@ When discussing your works, focus on the psychological depth, moral questions, a
                           <div className="w-2 h-2 rounded-full bg-green-400 mr-1" />
                           Active
                         </Badge>
-                        <span className="text-xs text-gray-400">Gemini 2.5 Pro</span>
+                        <span className="text-xs text-gray-400">Gemini 2.5 Flash</span>
                       </div>
                     </div>
                   </div>
@@ -229,13 +229,13 @@ When discussing your works, focus on the psychological depth, moral questions, a
                       )}
                     </div>
                   </div>
-                  
+
                   {isEditing ? (
                     <Textarea
                       value={tempPrompts[author.id] || ''}
-                      onChange={(e) => setTempPrompts({ 
-                        ...tempPrompts, 
-                        [author.id]: e.target.value 
+                      onChange={(e) => setTempPrompts({
+                        ...tempPrompts,
+                        [author.id]: e.target.value
                       })}
                       className="h-48 bg-white/5 border-white/10 text-white placeholder-gray-400"
                       placeholder="Enter the persona prompt for this author..."
@@ -324,7 +324,7 @@ When discussing your works, focus on the psychological depth, moral questions, a
               />
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-2 text-white">
               <input

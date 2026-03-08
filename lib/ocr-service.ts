@@ -44,7 +44,7 @@ export class OCRService {
    * Extract text from image using multiple OCR providers with fallbacks
    */
   static async extractText(
-    imageBuffer: Buffer, 
+    imageBuffer: Buffer,
     mimeType: string,
     userEmail: string = 'anonymous'
   ): Promise<OCRResult> {
@@ -60,7 +60,7 @@ export class OCRService {
         }
 
         let result: OCRResult
-        
+
         switch (provider) {
           case 'ocr-space':
             result = await this.extractWithOCRSpace(imageBuffer, mimeType)
@@ -75,7 +75,7 @@ export class OCRService {
 
         // Update rate limits
         this.updateRateLimit(provider, userEmail)
-        
+
         result.processingTime = Date.now() - startTime
         return result
 
@@ -143,10 +143,10 @@ export class OCRService {
     }
 
     const result = await response.json()
-    
+
     if (result.IsErroredOnProcessing) {
-      const errorMessage = Array.isArray(result.ErrorMessage) 
-        ? result.ErrorMessage.join(', ') 
+      const errorMessage = Array.isArray(result.ErrorMessage)
+        ? result.ErrorMessage.join(', ')
         : result.ErrorMessage || 'Unknown processing error'
       throw new Error(`OCR.space processing error: ${errorMessage}`)
     }
@@ -156,7 +156,7 @@ export class OCRService {
     }
 
     const extractedText = result.ParsedResults[0].ParsedText.trim()
-    
+
     if (extractedText.length === 0) {
       throw new Error('Empty text extracted from image')
     }
@@ -184,7 +184,7 @@ export class OCRService {
         }, 0) / lines.length
         return Math.round(avgConfidence * 100) / 100
       }
-      
+
       // Fallback confidence based on text length and characteristics
       const textLength = result.ParsedText?.length || 0
       if (textLength > 100) return 0.9
@@ -216,10 +216,10 @@ export class OCRService {
       }
 
       const { GoogleGenerativeAI } = await import('@google/generative-ai')
-      
+
       // Try to get API key from multiple sources
       let geminiApiKey = process.env.GEMINI_API_KEY
-      
+
       if (!geminiApiKey) {
         try {
           const { DatabaseService } = await import('./database-service')
@@ -235,8 +235,8 @@ export class OCRService {
       }
 
       const genAI = new GoogleGenerativeAI(geminiApiKey)
-      const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
         generationConfig: {
           maxOutputTokens: 2048,
           temperature: 0.1,
@@ -265,7 +265,7 @@ Extract the text now:`
 
       const result = await Promise.race([
         model.generateContent([enhancedPrompt, imagePart]),
-        new Promise<never>((_, reject) => 
+        new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Gemini request timeout (30s)')), 30000)
         )
       ])
@@ -278,10 +278,10 @@ Extract the text now:`
       }
 
       const cleanedText = text.trim()
-      
-      if (cleanedText.toLowerCase().includes('no readable text found') || 
-          cleanedText.toLowerCase().includes('no text') ||
-          cleanedText.length < 3) {
+
+      if (cleanedText.toLowerCase().includes('no readable text found') ||
+        cleanedText.toLowerCase().includes('no text') ||
+        cleanedText.length < 3) {
         throw new Error('No readable text found in image')
       }
 
@@ -315,17 +315,17 @@ Extract the text now:`
   private static calculateGeminiConfidence(text: string): number {
     // Heuristics for Gemini confidence
     let confidence = 0.7 // Base confidence for Gemini
-    
+
     // Length bonus
     if (text.length > 100) confidence += 0.1
     if (text.length > 500) confidence += 0.1
-    
+
     // Structure bonus
     if (text.includes('\n') || text.includes('.')) confidence += 0.05
-    
+
     // No obvious AI artifacts penalty
     if (text.includes('I cannot') || text.includes('Unable to')) confidence -= 0.3
-    
+
     return Math.min(0.95, Math.max(0.3, confidence))
   }
 
@@ -336,9 +336,9 @@ Extract the text now:`
     const key = `${provider}-${userEmail}`
     const now = Date.now()
     const userRequest = this.RATE_LIMITS.get(key)
-    
+
     if (!userRequest) return false
-    
+
     if (now < userRequest.resetTime) {
       // Different limits per provider
       const limits: Record<string, number> = {
@@ -347,7 +347,7 @@ Extract the text now:`
       }
       return userRequest.count >= (limits[provider] || 10)
     }
-    
+
     return false
   }
 
@@ -358,9 +358,9 @@ Extract the text now:`
     const key = `${provider}-${userEmail}`
     const now = Date.now()
     const hourInMs = 60 * 60 * 1000
-    
+
     const existing = this.RATE_LIMITS.get(key)
-    
+
     if (existing && now < existing.resetTime) {
       existing.count++
     } else {
@@ -374,9 +374,9 @@ Extract the text now:`
   /**
    * Get available providers status
    */
-  static async getProvidersStatus(): Promise<Array<{provider: string, available: boolean, error?: string}>> {
+  static async getProvidersStatus(): Promise<Array<{ provider: string, available: boolean, error?: string }>> {
     const status = []
-    
+
     // Check OCR.space (available if API key exists)
     const ocrSpaceKey = await this.getOCRSpaceApiKey()
     status.push({

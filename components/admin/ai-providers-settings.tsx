@@ -13,11 +13,11 @@ interface AIProvidersSettingsProps {
   setTestingProvider: (provider: string | null) => void
 }
 
-export function AIProvidersSettings({ 
-  settings, 
-  onSettingChange, 
-  testingProvider, 
-  setTestingProvider 
+export function AIProvidersSettings({
+  settings,
+  onSettingChange,
+  testingProvider,
+  setTestingProvider
 }: AIProvidersSettingsProps) {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string; timestamp: number }>>({})
@@ -31,18 +31,18 @@ export function AIProvidersSettings({
 
   const testConnection = async (provider: 'openai' | 'gemini' | 'deepseek') => {
     const apiKey = settings[`${provider}ApiKey`]
-    
+
     if (!apiKey) {
       toast.error(`Please enter ${provider.toUpperCase()} API key first`)
       return
     }
 
     setTestingProvider(provider)
-    setTestResults(prev => ({ 
-      ...prev, 
-      [provider]: { success: false, message: 'Testing connection...', timestamp: Date.now() } 
+    setTestResults(prev => ({
+      ...prev,
+      [provider]: { success: false, message: 'Testing connection...', timestamp: Date.now() }
     }))
-    
+
     try {
       // Use the API route instead of calling UnifiedAIService directly to avoid server-side issues
       const response = await fetch('/api/admin/test-providers', {
@@ -57,7 +57,7 @@ export function AIProvidersSettings({
       })
 
       const result = await response.json()
-      
+
       setTestResults(prev => ({
         ...prev,
         [provider]: {
@@ -74,7 +74,7 @@ export function AIProvidersSettings({
       }
     } catch (error: any) {
       const errorMessage = error.message || 'Network error during connection test'
-      
+
       setTestResults(prev => ({
         ...prev,
         [provider]: {
@@ -83,7 +83,7 @@ export function AIProvidersSettings({
           timestamp: Date.now()
         }
       }))
-      
+
       toast.error(`${provider.toUpperCase()} test failed: ${errorMessage}`)
     } finally {
       setTestingProvider(null)
@@ -103,9 +103,9 @@ export function AIProvidersSettings({
     {
       id: 'gemini',
       name: 'Google Gemini',
-      description: 'Gemini 2.5 Pro and other Google AI models',
-      models: ['gemini-2.5-pro', 'gemini-2.0-flash-exp', 'gemini-1.5-pro'],
-      defaultModel: 'gemini-2.5-pro',
+      description: 'Free-tier Gemini 2.5 models (Flash, Flash-Lite, Pro)',
+      models: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'],
+      defaultModel: 'gemini-2.5-flash',
       setupGuide: 'Get your API key from Google AI Studio (aistudio.google.com)',
       color: 'from-blue-500 to-cyan-500'
     },
@@ -129,7 +129,7 @@ export function AIProvidersSettings({
             <label className="block text-sm text-gray-300 mb-1">Generate Content – Provider</label>
             <select
               value={settings.aiGenerateProvider || settings.defaultAiProvider || 'openai'}
-              onChange={(e)=>onSettingChange('aiGenerateProvider', e.target.value)}
+              onChange={(e) => onSettingChange('aiGenerateProvider', e.target.value)}
               className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
             >
               <option value="openai">OpenAI</option>
@@ -139,8 +139,8 @@ export function AIProvidersSettings({
             <label className="block text-sm text-gray-300 mt-2 mb-1">Generate Content – Model</label>
             <input
               value={settings.aiGenerateModel || ''}
-              onChange={(e)=>onSettingChange('aiGenerateModel', e.target.value)}
-              placeholder="e.g., gpt-4o / gemini-1.5-pro / deepseek-chat-v3"
+              onChange={(e) => onSettingChange('aiGenerateModel', e.target.value)}
+              placeholder="e.g., gpt-4o / gemini-2.5-flash / deepseek-chat-v3"
               className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400"
             />
           </div>
@@ -148,7 +148,7 @@ export function AIProvidersSettings({
             <label className="block text-sm text-gray-300 mb-1">Find Source – Provider</label>
             <select
               value={settings.aiFindSourceProvider || settings.defaultAiProvider || 'openai'}
-              onChange={(e)=>onSettingChange('aiFindSourceProvider', e.target.value)}
+              onChange={(e) => onSettingChange('aiFindSourceProvider', e.target.value)}
               className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
             >
               <option value="openai">OpenAI</option>
@@ -158,8 +158,8 @@ export function AIProvidersSettings({
             <label className="block text-sm text-gray-300 mt-2 mb-1">Find Source – Model</label>
             <input
               value={settings.aiFindSourceModel || ''}
-              onChange={(e)=>onSettingChange('aiFindSourceModel', e.target.value)}
-              placeholder="e.g., gpt-4o / gemini-1.5-pro / deepseek-chat-v3"
+              onChange={(e) => onSettingChange('aiFindSourceModel', e.target.value)}
+              placeholder="e.g., gpt-4o / gemini-2.5-flash / deepseek-chat-v3"
               className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400"
             />
           </div>
@@ -167,14 +167,14 @@ export function AIProvidersSettings({
             <label className="block text-sm text-gray-300 mb-1">Explain/Analyze – Model</label>
             <input
               value={settings.aiExplainModel || ''}
-              onChange={(e)=>onSettingChange('aiExplainModel', e.target.value)}
+              onChange={(e) => onSettingChange('aiExplainModel', e.target.value)}
               placeholder="Optional override (default uses provider model)"
               className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400"
             />
             <label className="block text-sm text-gray-300 mt-2 mb-1">Explain/Analyze – Provider</label>
             <select
               value={settings.aiExplainProvider || settings.defaultAiProvider || 'gemini'}
-              onChange={(e)=>onSettingChange('aiExplainProvider', e.target.value)}
+              onChange={(e) => onSettingChange('aiExplainProvider', e.target.value)}
               className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
             >
               <option value="openai">OpenAI</option>
@@ -184,14 +184,14 @@ export function AIProvidersSettings({
             <label className="block text-sm text-gray-300 mt-2 mb-1">Deep Analysis – Model</label>
             <input
               value={settings.aiAnalyzeModel || ''}
-              onChange={(e)=>onSettingChange('aiAnalyzeModel', e.target.value)}
+              onChange={(e) => onSettingChange('aiAnalyzeModel', e.target.value)}
               placeholder="Optional override for analysis"
               className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400"
             />
             <label className="block text-sm text-gray-300 mt-2 mb-1">Deep Analysis – Provider</label>
             <select
               value={settings.aiAnalyzeProvider || settings.aiExplainProvider || settings.defaultAiProvider || 'gemini'}
-              onChange={(e)=>onSettingChange('aiAnalyzeProvider', e.target.value)}
+              onChange={(e) => onSettingChange('aiAnalyzeProvider', e.target.value)}
               className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
             >
               <option value="openai">OpenAI</option>
@@ -215,11 +215,10 @@ export function AIProvidersSettings({
             <button
               key={provider.id}
               onClick={() => onSettingChange('defaultAiProvider', provider.id)}
-              className={`p-3 rounded-lg border-2 transition-all duration-200 ${
-                settings.defaultAiProvider === provider.id
-                  ? `bg-gradient-to-r ${provider.color} border-white/30 text-white`
-                  : 'border-white/20 text-gray-300 hover:border-white/40 hover:text-white'
-              }`}
+              className={`p-3 rounded-lg border-2 transition-all duration-200 ${settings.defaultAiProvider === provider.id
+                ? `bg-gradient-to-r ${provider.color} border-white/30 text-white`
+                : 'border-white/20 text-gray-300 hover:border-white/40 hover:text-white'
+                }`}
             >
               <div className="text-sm font-medium">{provider.name}</div>
               <div className="text-xs opacity-75">{provider.description}</div>
@@ -286,27 +285,25 @@ export function AIProvidersSettings({
               <div className="flex items-center space-x-3">
                 <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${provider.color}`}></div>
                 <h3 className="text-white font-medium">{provider.name}</h3>
-                <span className={`px-2 py-1 rounded-full text-xs ${
-                  settings.defaultAiProvider === provider.id
-                    ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-                    : 'bg-gray-500/20 text-gray-400'
-                }`}>
+                <span className={`px-2 py-1 rounded-full text-xs ${settings.defaultAiProvider === provider.id
+                  ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                  : 'bg-gray-500/20 text-gray-400'
+                  }`}>
                   {settings.defaultAiProvider === provider.id ? 'Active' : 'Inactive'}
                 </span>
               </div>
-              
+
               <button
                 onClick={() => testConnection(provider.id as any)}
                 disabled={testingProvider === provider.id || !settings[`${provider.id}ApiKey`]}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  testingProvider === provider.id
-                    ? 'bg-yellow-500/20 text-yellow-300'
-                    : testResults[provider.id]?.success === true
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${testingProvider === provider.id
+                  ? 'bg-yellow-500/20 text-yellow-300'
+                  : testResults[provider.id]?.success === true
                     ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
                     : testResults[provider.id]?.success === false
-                    ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
-                    : 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
-                }`}
+                      ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
+                      : 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
+                  }`}
               >
                 {testingProvider === provider.id ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -321,10 +318,10 @@ export function AIProvidersSettings({
                   {testingProvider === provider.id
                     ? 'Testing...'
                     : testResults[provider.id]?.success === true
-                    ? 'Connection OK'
-                    : testResults[provider.id]?.success === false
-                    ? 'Test Failed'
-                    : 'Test Connection'
+                      ? 'Connection OK'
+                      : testResults[provider.id]?.success === false
+                        ? 'Test Failed'
+                        : 'Test Connection'
                   }
                 </span>
               </button>
@@ -393,14 +390,13 @@ export function AIProvidersSettings({
                   </>
                 )}
               </div>
-              
+
               {/* Test Result Message */}
               {testResults[provider.id] && (
-                <div className={`p-3 rounded-lg text-sm border ${
-                  testResults[provider.id].success 
-                    ? 'bg-green-500/10 text-green-300 border-green-500/30' 
-                    : 'bg-red-500/10 text-red-300 border-red-500/30'
-                }`}>
+                <div className={`p-3 rounded-lg text-sm border ${testResults[provider.id].success
+                  ? 'bg-green-500/10 text-green-300 border-green-500/30'
+                  : 'bg-red-500/10 text-red-300 border-red-500/30'
+                  }`}>
                   <div className="flex items-center space-x-2">
                     {testResults[provider.id].success ? (
                       <CheckCircle className="w-4 h-4" />

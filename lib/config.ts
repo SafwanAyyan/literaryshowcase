@@ -14,8 +14,8 @@ export const config = {
   // Gemini Configuration
   gemini: {
     apiKey: process.env.GEMINI_API_KEY || '',
-    model: 'gemini-2.5-pro', // Latest Gemini 2.5 Pro model
-    fallbackModel: 'gemini-2.0-flash-exp',
+    model: 'gemini-2.5-flash', // Best free-tier model (250 RPD, 10 RPM)
+    fallbackModel: 'gemini-2.5-flash-lite',
     maxTokens: 2000,
     temperature: 0.8,
   },

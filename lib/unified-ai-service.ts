@@ -45,6 +45,28 @@ export class UnifiedAIService {
   private static geminiApiKey: string | null = null
 
   /**
+   * Free-tier Gemini model whitelist. Models outside this list have limit: 0 on the free tier
+   * and will cause 429 errors. When a non-free model is detected, we auto-downgrade to gemini-2.5-flash.
+   */
+  private static readonly FREE_TIER_GEMINI_MODELS = new Set([
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-pro',
+  ])
+
+  /**
+   * Validate that a Gemini model is available on the free tier.
+   * If not, automatically downgrade to gemini-2.5-flash and log a warning.
+   */
+  private static validateGeminiModel(model: string): string {
+    if (this.FREE_TIER_GEMINI_MODELS.has(model)) {
+      return model
+    }
+    console.warn(`[UnifiedAI] Model "${model}" is not available on the Gemini free tier (limit: 0). Auto-downgrading to gemini-2.5-flash.`)
+    return 'gemini-2.5-flash'
+  }
+
+  /**
    * Get the current AI provider from admin settings
    */
   private static async getCurrentProvider(forcedProvider?: AIProvider, useCase?: 'generate' | 'findSource' | 'explain' | 'analyze'): Promise<{ provider: AIProvider; config: ProviderConfig; enableFallback: boolean; settings?: Record<string, string> }> {
@@ -63,7 +85,7 @@ export class UnifiedAIService {
               useCase === 'explain' ? (settings.aiExplainProvider as AIProvider) :
                 undefined
 
-        const provider = forcedProvider || providerOverride || (settings.defaultAiProvider as AIProvider) || 'openai'
+        const provider = forcedProvider || providerOverride || (settings.defaultAiProvider as AIProvider) || 'gemini'
 
         const parsedTemp = settings.aiTemperature ? parseFloat(settings.aiTemperature) : undefined
         const parsedMax = settings.aiMaxTokens ? parseInt(settings.aiMaxTokens) : undefined
@@ -84,7 +106,7 @@ export class UnifiedAIService {
           },
           gemini: {
             apiKey: settings.geminiApiKey || process.env.GEMINI_API_KEY || '',
-            model: geminiModelOverride || 'gemini-2.5-flash',
+            model: this.validateGeminiModel(geminiModelOverride || 'gemini-2.5-flash'),
             fallbackModel: 'gemini-2.5-flash',
             maxTokens: parsedMax || 2000,
             temperature: typeof parsedTemp === 'number' ? parsedTemp : 0.9
@@ -115,11 +137,11 @@ export class UnifiedAIService {
     if (availableProviders.length === 0) {
       console.warn('[UnifiedAI] No valid API keys found in environment variables')
       return {
-        provider: 'openai',
+        provider: 'gemini',
         config: {
           apiKey: '',
-          model: 'gpt-4o',
-          fallbackModel: 'gpt-3.5-turbo',
+          model: 'gemini-2.5-flash',
+          fallbackModel: 'gemini-2.5-flash',
           maxTokens: 2000,
           temperature: 0.8
         },
@@ -281,11 +303,12 @@ export class UnifiedAIService {
     if (provider === 'gemini') {
       const client = this.getGeminiClient(config.apiKey)
       const model = client.getGenerativeModel({ model: modelOverride || config.model })
-      const result = await model.generateContent([
-        sys,
-        `Writing:\n"""\n${content}\n"""`,
-        `Question: ${question || 'Explain this in simple terms.'}`
-      ])
+      const result = await model.generateContent({
+        contents: [{
+          role: 'user',
+          parts: [{ text: `${sys}\n\nWriting:\n"""\n${content}\n"""\n\nQuestion: ${question || 'Explain this in simple terms.'}` }]
+        }],
+      })
       const text = typeof result.response?.text === 'function' ? result.response.text() : ''
       return (text || '').toString().trim() || 'No explanation available.'
     }
@@ -873,30 +896,58 @@ Return ONLY the JSON object. Be accurate and honest about your confidence level.
   }
 
   /**
-   * Call Gemini API
+   * Call Gemini API with 429 retry and automatic model downgrade
    */
   private static async callGemini(config: ProviderConfig, prompt: string) {
-    const client = this.getGeminiClient(config.apiKey)
-    const model = client.getGenerativeModel({
-      model: config.model,
-      generationConfig: {
-        maxOutputTokens: config.maxTokens ?? 2000,
-        temperature: typeof config.temperature === "number" ? config.temperature : 0.8,
-      },
-    })
+    const modelsToTry = [
+      this.validateGeminiModel(config.model),
+      ...(config.fallbackModel && config.fallbackModel !== config.model
+        ? [this.validateGeminiModel(config.fallbackModel)]
+        : ['gemini-2.5-flash-lite']),
+    ]
 
-    const result = await model.generateContent({
-      contents: [{
-        role: 'user',
-        parts: [{ text: `You are a literary and cultural expert. Return only valid JSON format.\n\n${prompt}` }]
-      }],
-    })
+    let lastError: Error | null = null
 
-    const text = typeof result?.response?.text === 'function' ? result.response.text() : ''
-    if (!text || !text.trim()) {
-      throw new Error('Gemini returned empty response')
+    for (const modelId of modelsToTry) {
+      try {
+        const client = this.getGeminiClient(config.apiKey)
+        const model = client.getGenerativeModel({
+          model: modelId,
+          generationConfig: {
+            maxOutputTokens: config.maxTokens ?? 2000,
+            temperature: typeof config.temperature === "number" ? config.temperature : 0.8,
+          },
+        })
+
+        const result = await model.generateContent({
+          contents: [{
+            role: 'user',
+            parts: [{ text: `You are a literary and cultural expert. Return only valid JSON format.\n\n${prompt}` }]
+          }],
+        })
+
+        const text = typeof result?.response?.text === 'function' ? result.response.text() : ''
+        if (!text || !text.trim()) {
+          throw new Error('Gemini returned empty response')
+        }
+        return text
+      } catch (error: any) {
+        lastError = error
+        const is429 = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('Too Many Requests')
+
+        if (is429 && modelId !== modelsToTry[modelsToTry.length - 1]) {
+          // Extract retry delay from error or use default 5s
+          const retryMatch = error?.message?.match(/retry in ([\d.]+)s/i)
+          const delaySec = retryMatch ? Math.min(parseFloat(retryMatch[1]), 30) : 5
+          console.warn(`[UnifiedAI] 429 on ${modelId}, retrying with next model after ${delaySec}s...`)
+          await new Promise(r => setTimeout(r, delaySec * 1000))
+          continue
+        }
+        throw error
+      }
     }
-    return text
+
+    throw lastError || new Error('All Gemini models failed')
   }
 
   /**
@@ -1289,7 +1340,7 @@ FINAL SAFETY/QUALITY CHECK:
 
     // Use the established author pool for known writers mode
     const pool = knownWritersAuthorPools[category as keyof typeof knownWritersAuthorPools] || knownWritersAuthorPools['found-made']
-    const randomIndex = (index + Math.floor(Date.now() / 1000)) % pool.length
+    const randomIndex = (index + Math.floor(Math.random() * pool.length)) % pool.length
     return pool[randomIndex]
   }
 
@@ -1453,7 +1504,12 @@ FINAL SAFETY/QUALITY CHECK:
         ].join('\n\n')
 
         // Note: generationConfig is optional; defaults are used for speed/stability
-        const result: any = await model.generateContent(prompt)
+        const result: any = await model.generateContent({
+          contents: [{
+            role: 'user',
+            parts: [{ text: prompt }]
+          }],
+        })
         const text = typeof result?.response?.text === 'function' ? result.response.text() : ''
         const content = (text || '').toString().trim()
         if (!content) return { success: false, error: 'Empty response', provider }

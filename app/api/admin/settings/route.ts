@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     // Get all settings
     const settings = await prisma.adminSettings.findMany()
-    
+
     // Convert to key-value object
     const settingsObject = settings.reduce((acc, setting) => {
       acc[setting.key] = setting.value
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       openaiApiKey: process.env.OPENAI_API_KEY || '',
       geminiApiKey: process.env.GEMINI_API_KEY || '',
       deepseekApiKey: process.env.DEEPSEEK_API_KEY || '',
-      defaultAiProvider: 'openai',
+      defaultAiProvider: 'gemini',
       openaiModel: 'gpt-4o',
       geminiModel: 'gemini-2.5-pro',
       deepseekModel: 'deepseek-chat-v3',
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     const updatePromises = Object.entries(settings).map(async ([key, value]) => {
       return prisma.adminSettings.upsert({
         where: { key },
-        update: { 
+        update: {
           value: String(value),
           updatedAt: new Date()
         },
@@ -128,12 +128,12 @@ function getSettingDescription(key: string): string {
     deepseekApiKey: 'DeepSeek API key for AI content generation and source finding (via OpenRouter)',
     defaultAiProvider: 'Default AI provider for content generation (openai, gemini, or deepseek)',
     openaiModel: 'OpenAI model to use (e.g., gpt-4o, gpt-3.5-turbo)',
-    geminiModel: 'Gemini model to use (e.g., gemini-2.5-pro, gemini-2.0-flash-exp)',
+    geminiModel: 'Gemini model to use (e.g., gemini-2.5-pro, gemini-2.5-flash)',
     deepseekModel: 'DeepSeek model to use (e.g., deepseek-chat-v3, deepseek-chat-v3-0324)',
     maintenanceMessage: 'Message displayed to users during maintenance mode',
     siteName: 'Name of the website displayed in headers and titles',
     allowedMaintenanceEmails: 'Email addresses that can access the site during maintenance (comma-separated)'
   }
-  
+
   return descriptions[key] || `Configuration setting: ${key}`
 }

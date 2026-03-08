@@ -24,7 +24,7 @@ export function AIContentGenerator() {
   const [quantity, setQuantity] = useState(5)
   const [theme, setTheme] = useState("")
   const [tone, setTone] = useState("inspirational")
-  const [provider, setProvider] = useState<"openai" | "gemini" | "both">("openai")
+  const [provider, setProvider] = useState<"openai" | "gemini" | "deepseek" | "both">("gemini")
   const [writingMode, setWritingMode] = useState<"known-writers" | "original-ai">("original-ai")
 
   // Prompt preview state
@@ -34,7 +34,7 @@ export function AIContentGenerator() {
 
   const handleGenerate = async () => {
     setIsGenerating(true)
-    
+
     try {
       const response = await fetch('/api/ai/generate', {
         method: 'POST',
@@ -98,7 +98,7 @@ export function AIContentGenerator() {
 
   const generateMockContent = (type: string, theme: string, tone: string) => {
     const baseTheme = theme || "life"
-    
+
     if (type === "quote") {
       const quotes = [
         `The ${baseTheme} we seek is often found in the ${tone} moments we create.`,
@@ -109,7 +109,7 @@ export function AIContentGenerator() {
       ]
       return quotes[Math.floor(Math.random() * quotes.length)]
     }
-    
+
     if (type === "poem") {
       return `In the realm of ${baseTheme},
 Where ${tone} dreams take flight,
@@ -121,7 +121,7 @@ Each breath, a whispered prayer,
 That in this dance of ${baseTheme},
 Love is always there.`
     }
-    
+
     // reflection
     return `There's something profoundly ${tone} about ${baseTheme} that speaks to the deepest parts of our being. When we truly embrace this truth, we begin to understand that our experiences, both joyful and challenging, are threads in a larger tapestry of meaning.`
   }
@@ -139,7 +139,7 @@ Love is always there.`
       const contentId = parseInt((checkbox as HTMLInputElement).dataset.contentId || "0")
       return generatedContent[contentId]
     }).filter(Boolean)
-    
+
     if (selectedItems.length > 0) {
       try {
         const response = await fetch('/api/content/bulk', {
@@ -154,7 +154,7 @@ Love is always there.`
         if (result.success) {
           // Notify that content has been updated
           ContentRefresh.notifyContentChange()
-          
+
           toast.success(`${selectedItems.length} items added to your content library successfully!`)
           // Clear the generated content after adding
           setGeneratedContent([])
@@ -242,21 +242,19 @@ Love is always there.`
             <motion.div
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                writingMode === 'original-ai'
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${writingMode === 'original-ai'
                   ? 'border-purple-500 bg-purple-500/20'
                   : 'border-white/20 bg-white/5 hover:border-purple-400'
-              }`}
+                }`}
               onClick={() => setWritingMode('original-ai')}
             >
               <div className="flex items-center mb-2">
-                <div className={`w-4 h-4 rounded-full border-2 mr-3 ${
-                  writingMode === 'original-ai' ? 'border-purple-500 bg-purple-500' : 'border-gray-400'
-                }`} />
+                <div className={`w-4 h-4 rounded-full border-2 mr-3 ${writingMode === 'original-ai' ? 'border-purple-500 bg-purple-500' : 'border-gray-400'
+                  }`} />
                 <h3 className="text-white font-medium">Original AI Writing</h3>
               </div>
               <p className="text-gray-300 text-sm">
-                AI creates completely original content from its own creativity and understanding. 
+                AI creates completely original content from its own creativity and understanding.
                 Produces unique, authentic pieces with fresh perspectives and original voice.
               </p>
             </motion.div>
@@ -264,21 +262,19 @@ Love is always there.`
             <motion.div
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                writingMode === 'known-writers'
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${writingMode === 'known-writers'
                   ? 'border-purple-500 bg-purple-500/20'
                   : 'border-white/20 bg-white/5 hover:border-purple-400'
-              }`}
+                }`}
               onClick={() => setWritingMode('known-writers')}
             >
               <div className="flex items-center mb-2">
-                <div className={`w-4 h-4 rounded-full border-2 mr-3 ${
-                  writingMode === 'known-writers' ? 'border-purple-500 bg-purple-500' : 'border-gray-400'
-                }`} />
+                <div className={`w-4 h-4 rounded-full border-2 mr-3 ${writingMode === 'known-writers' ? 'border-purple-500 bg-purple-500' : 'border-gray-400'
+                  }`} />
                 <h3 className="text-white font-medium">Known Writers Style</h3>
               </div>
               <p className="text-gray-300 text-sm">
-                AI writes in the style of famous authors and writers from the selected genre. 
+                AI writes in the style of famous authors and writers from the selected genre.
                 Emulates the voice, techniques, and wisdom of literary masters and renowned figures.
               </p>
             </motion.div>
@@ -360,11 +356,12 @@ Love is always there.`
             <label className="block text-sm font-medium text-gray-300 mb-2">AI Provider</label>
             <select
               value={provider}
-              onChange={(e) => setProvider(e.target.value as "openai" | "gemini" | "both")}
+              onChange={(e) => setProvider(e.target.value as "openai" | "gemini" | "deepseek" | "both")}
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <option value="openai">OpenAI (GPT-4o)</option>
               <option value="gemini">Google Gemini</option>
+              <option value="deepseek">DeepSeek V3</option>
               <option value="both">Both Providers</option>
             </select>
           </div>
@@ -427,7 +424,7 @@ Love is always there.`
             </Button>
           </div>
           <pre className="bg-black/40 text-purple-100 p-3 rounded-xl max-h-[260px] overflow-auto text-xs whitespace-pre-wrap">
-{promptPreview || 'No prompt available.'}
+            {promptPreview || 'No prompt available.'}
           </pre>
         </div>
       )}

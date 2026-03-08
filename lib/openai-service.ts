@@ -62,11 +62,11 @@ export class OpenAIService {
       try {
         // Try to extract JSON from the response if it's wrapped in other text
         let cleanResponse = response.trim()
-        
+
         // Look for JSON object/array in the response
         const jsonStart = cleanResponse.indexOf('{')
         const jsonArrayStart = cleanResponse.indexOf('[')
-        
+
         if (jsonStart !== -1 && (jsonArrayStart === -1 || jsonStart < jsonArrayStart)) {
           // JSON object found
           const jsonEnd = cleanResponse.lastIndexOf('}')
@@ -80,7 +80,7 @@ export class OpenAIService {
             cleanResponse = cleanResponse.substring(jsonArrayStart, jsonEnd + 1)
           }
         }
-        
+
         parsedResponse = JSON.parse(cleanResponse)
       } catch (parseError) {
         console.error('Failed to parse OpenAI response:', response)
@@ -103,7 +103,7 @@ export class OpenAIService {
 
     } catch (error) {
       console.error('Error generating content with OpenAI:', error)
-      
+
       // Return fallback content for demo purposes
       return this.getFallbackContent(params)
     }
@@ -111,9 +111,9 @@ export class OpenAIService {
 
   private static buildPrompt(params: GenerationParameters): string {
     const { category, type, theme, tone, quantity } = params
-    
+
     let basePrompt = `Generate ${quantity} high-quality ${type}s in a ${tone} tone`
-    
+
     if (theme) {
       basePrompt += ` about ${theme}`
     }
@@ -136,6 +136,9 @@ export class OpenAIService {
         break
       case 'original-poetry':
         basePrompt += 'These should be original poems with emotional depth, vivid imagery, and meaningful themes.'
+        break
+      case 'heartbreak':
+        basePrompt += 'These should capture the exquisite honesty of loss, longing, and the world recolored by absence. Focus on raw emotional truth without melodrama.'
         break
     }
 
@@ -176,7 +179,7 @@ export class OpenAIService {
     if (writingMode === 'original-ai') {
       return 'Anonymous'
     }
-    
+
     if (suggestedAuthor && suggestedAuthor.trim()) {
       return suggestedAuthor.trim()
     }
@@ -197,10 +200,10 @@ export class OpenAIService {
   private static getFallbackContent(params: GenerationParameters): GeneratedContent[] {
     // Generate the requested quantity with varied content
     const generatedItems: GeneratedContent[] = []
-    
+
     for (let i = 0; i < params.quantity; i++) {
       let content: string
-      
+
       switch (params.type) {
         case 'quote':
           content = this.generateFallbackQuote(params.theme, params.tone, i)
@@ -214,10 +217,10 @@ export class OpenAIService {
         default:
           content = this.generateFallbackQuote(params.theme, params.tone, i)
       }
-      
+
       // Use the same author generation logic as the main function
       const author = this.getAuthorForType(params.type, undefined, params.writingMode || 'original-ai')
-      
+
       generatedItems.push({
         content,
         author,
@@ -225,7 +228,7 @@ export class OpenAIService {
         type: params.type
       })
     }
-    
+
     return generatedItems
   }
 
@@ -242,7 +245,7 @@ export class OpenAIService {
       "In silence, we find the answers that noise cannot provide.",
       "The art of living is finding beauty in ordinary moments."
     ]
-    
+
     const themeVariations = theme ? [
       `In the realm of ${theme}, `,
       `When contemplating ${theme}, `,
@@ -250,42 +253,42 @@ export class OpenAIService {
       `Through ${theme}, we learn that `,
       `${theme} reminds us that `
     ] : [""]
-    
+
     const base = baseQuotes[index % baseQuotes.length]
     const variation = themeVariations[index % themeVariations.length]
-    
+
     return variation + base.toLowerCase()
   }
 
   private static generateFallbackPoem(theme: string | undefined, tone: string, index: number): string {
     const poemTemplates = [
       "In quiet moments of the day,\nWhen thoughts have room to breathe and play,\nI find the truths that matter most\nAre simple gifts, not things to boast.",
-      
+
       "Beneath the vast and starlit sky,\nWhere dreams and wishes learn to fly,\nEach moment holds a sacred space\nFor hope to show its gentle face.",
-      
+
       "The river flows, the seasons turn,\nWith every step, we live and learn,\nThat beauty lives in simple things—\nThe joy that each new morning brings.",
-      
+
       "In gardens where the heart can grow,\nWhere love and kindness gently flow,\nWe plant the seeds of who we are\nAnd tend them like a guiding star.",
-      
+
       "When shadows fall and light grows dim,\nAnd courage feels forever slim,\nRemember that the darkest night\nAlways yields to morning light."
     ]
-    
+
     return poemTemplates[index % poemTemplates.length]
   }
 
   private static generateFallbackReflection(theme: string | undefined, tone: string, index: number): string {
     const reflections = [
       "There's something profound about the way life unfolds in unexpected directions. Each twist and turn teaches us that our greatest growth often comes not from the destinations we planned, but from the detours we never saw coming.",
-      
+
       "In the quiet spaces between our thoughts, wisdom waits patiently. It doesn't announce itself with fanfare or demand immediate attention. Instead, it whispers gentle truths that only become clear when we're ready to receive them.",
-      
+
       "The art of living well isn't about having all the answers—it's about remaining curious enough to keep asking the right questions. Every experience, whether joyful or challenging, becomes a teacher when we approach it with an open heart.",
-      
+
       "Sometimes the most powerful transformations happen in the smallest moments. A kind word, a shared smile, a moment of genuine connection—these seemingly insignificant interactions often carry the power to change everything.",
-      
+
       "We spend so much time looking ahead or behind that we forget the only moment we truly possess is this one. In learning to be present, we discover that life isn't happening to us—it's happening through us."
     ]
-    
+
     return reflections[index % reflections.length]
   }
 
@@ -293,7 +296,7 @@ export class OpenAIService {
   static async testConnection(): Promise<{ success: boolean; message: string }> {
     try {
       const client = this.getClient()
-      
+
       const completion = await client.chat.completions.create({
         model: openaiConfig.fallbackModel,
         messages: [{ role: "user", content: "Say 'OpenAI connection successful'" }],
@@ -301,7 +304,7 @@ export class OpenAIService {
       })
 
       const response = completion.choices[0]?.message?.content
-      
+
       return {
         success: response?.includes('successful') || false,
         message: response || 'No response received'
@@ -320,7 +323,7 @@ export class OpenAIService {
   static async findSourceInfo(content: string): Promise<{ author: string; source?: string }> {
     try {
       const client = this.getClient()
-      
+
       const prompt = `Analyze this text and identify its author and source:
 
 "${content}"
@@ -359,15 +362,15 @@ Be accurate and only provide information you're confident about.`
       let parsedResponse
       try {
         let cleanResponse = response.trim()
-        
+
         // Look for JSON object in the response
         const jsonStart = cleanResponse.indexOf('{')
         const jsonEnd = cleanResponse.lastIndexOf('}')
-        
+
         if (jsonStart !== -1 && jsonEnd !== -1) {
           cleanResponse = cleanResponse.substring(jsonStart, jsonEnd + 1)
         }
-        
+
         parsedResponse = JSON.parse(cleanResponse)
       } catch (parseError) {
         console.error('Failed to parse source lookup response:', response)

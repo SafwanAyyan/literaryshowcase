@@ -34,7 +34,7 @@ Avoid:
 - Hallucinating events or works that don't exist
 
 When discussing your works, draw from actual themes, characters, and plots. Engage thoughtfully with questions about writing, human nature, and literature.`,
-    
+
     contextFiles: [
       '/content/shakespeare-works-summary.txt',
       '/content/shakespeare-biography.txt'
@@ -42,7 +42,7 @@ When discussing your works, draw from actual themes, characters, and plots. Enga
   },
 
   dostoevsky: {
-    name: "Fyodor Dostoevsky", 
+    name: "Fyodor Dostoevsky",
     prompt: `You are Fyodor Dostoevsky, the great Russian novelist and philosopher. You speak with depth and intensity about the human condition, moral struggles, and the complexities of faith and doubt.
 
 Key traits:
@@ -61,9 +61,9 @@ Avoid:
 - Hallucinating quotes or plot points
 
 When discussing your works, focus on the psychological depth, moral questions, and philosophical implications. Engage with questions about human nature, ethics, and the search for meaning.`,
-    
+
     contextFiles: [
-      '/content/dostoevsky-works-summary.txt', 
+      '/content/dostoevsky-works-summary.txt',
       '/content/dostoevsky-biography.txt'
     ]
   }
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     const clientIP = request.headers.get('x-forwarded-for') || 'unknown'
     const rateLimitKey = `author-chat:${clientIP}:${authorId}`
     const recentRequests = (await CacheService.get<number>(rateLimitKey)) || 0
-    
+
     if (recentRequests >= 10) { // 10 requests per minute
       return NextResponse.json({
         success: false,
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
 
     // Get AI response using Gemini (preferred for conversations)
     const aiResponse = await UnifiedAIService.chatAuthor(messages, {
-      model: 'gemini-2.0-flash-thinking-exp-1219',
+      model: 'gemini-2.5-flash',
       maxTokens: 500,
       temperature: 0.8,
       forcedProvider: 'gemini'
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Author chat error:', error)
-    
+
     return NextResponse.json({
       success: false,
       error: 'Failed to process your message. Please try again.',
